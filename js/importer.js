@@ -2,11 +2,12 @@
  * Roster and Full Match Importer Engine for Damien High School Water Polo
  * Handles:
  * - Direct Google Sheets CSV integration (Single & Multiple Game Tabs)
- * - Full Offline Match Reconstruction from Damien Varsity WaterPolo Stats Sheet format:
+ * - Full Offline Match & Stats Extraction from Damien Varsity WaterPolo Stats Sheet layout:
  *   - Match Metadata (Date, Location, Opponent, Quarter Scores, Timeouts)
- *   - Player Box Score & Action Matrices (Goals, 5M, 6on5, 2M, Misses, Steals, Turnovers, Blocks, Exclusions)
- *   - Goalkeepers (Goals Allowed, Saves, Save %)
- *   - Reconstructed Timeline Play-by-Play Events
+ *   - Field Player Actions (Goals: 5M, 6on5, 2M, Action; Misses: Off Cage, Regular; Defense: Steals, TO Forced, Blocks, Exclusions, 1on1)
+ *   - Goalkeepers (Goal AG, Saves, 5M Save, 1on1 Save)
+ *   - Flexible cell value parsing (supports numbers: 1, 2, 3; tallies: I, II, III, X, x, ✓, /; and formulas)
+ *   - Reconstructed Timeline Play-by-Play Events & Match State
  * - Saved Offline Match Archive (Local & Firestore synced)
  */
 
@@ -36,7 +37,6 @@ export class ImporterEngine {
   async fetchFromGoogleSheetUrl(urlOrId, gid = '0') {
     let csvUrl = (urlOrId || this.defaultGoogleSheetUrl).trim();
 
-    // Check if user entered full Google Sheet URL with gid
     const gidMatch = csvUrl.match(/gid=([0-9]+)/);
     const actualGid = gidMatch ? gidMatch[1] : gid;
 
@@ -45,7 +45,6 @@ export class ImporterEngine {
       const sheetId = match[1];
       csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${actualGid}`;
     } else if (!csvUrl.startsWith('http')) {
-      // Raw Spreadsheet ID
       csvUrl = `https://docs.google.com/spreadsheets/d/${csvUrl}/gviz/tq?tqx=out:csv&gid=${actualGid}`;
     }
 
@@ -61,7 +60,7 @@ export class ImporterEngine {
     }
   }
 
-  // 2. Fetch Full Game from Google Sheet
+  // 2. Fetch Full Game & Stats from Google Sheet
   async fetchFullGameFromGoogleSheet(urlOrId, gid = '0', opponentName = 'Opponent') {
     let csvUrl = (urlOrId || this.defaultGoogleSheetUrl).trim();
     const gidMatch = csvUrl.match(/gid=([0-9]+)/);
@@ -83,8 +82,37 @@ export class ImporterEngine {
       const csvText = await response.text();
       return this.parseFullGameCSV(csvText, opponentName);
     } catch (err) {
-      throw new Error(`Failed to pull game from Google Sheet: ${err.message}`);
+      throw new Error(`Failed to pull game stats from Google Sheet: ${err.message}`);
     }
+  }
+
+  // Helper: Parse versatile cell content (integers, tallies, marks)
+  parseCellCount(val) {
+    if (val === null || val === undefined) return 0;
+    const str = String(val).trim();
+    if (!str || str === '0' || str === '-') return 0;
+
+    // Direct Integer
+    const intVal = parseInt(str);
+    if (!isNaN(intVal) && intVal > 0) return intVal;
+
+    // Tally marks (e.g. "III", "///", "1,1", "X", "✓")
+    if (/^[I|/]+$/i.test(str)) return str.length;
+    if (str.toLowerCase() === 'x' || str === '✓' || str === '✔') return 1;
+
+    // Comma or space-separated list of numbers/tallies: "1, 1, 1"
+    if (str.includes(',') || str.includes(' ')) {
+      const parts = str.split(/[, ]+/).filter(p => p.trim() !== '');
+      let sum = 0;
+      parts.forEach(p => {
+        const n = parseInt(p);
+        if (!isNaN(n)) sum += n;
+        else if (p.length > 0) sum += 1;
+      });
+      if (sum > 0) return sum;
+    }
+
+    return 0;
   }
 
   // 3. Parse Full Damien Varsity Game Stats Sheet CSV
@@ -98,7 +126,7 @@ export class ImporterEngine {
     let official1 = '';
     let official2 = '';
 
-    // Search header for Date, Location, Officials
+    // Search header rows for Date, Location, Officials
     rows.slice(0, 8).forEach(r => {
       const rowStr = r.join(' ');
       const dateMatch = rowStr.match(/Date:\s*([^\s,"]+)/i) || rowStr.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
@@ -106,15 +134,18 @@ export class ImporterEngine {
 
       const locMatch = rowStr.match(/Location:?\s*([^\s,"]+)/i);
       if (locMatch) location = locMatch[1];
+
+      const offMatch = rowStr.match(/Official\s*1:?\s*([^\s,"]+)/i);
+      if (offMatch) official1 = offMatch[1];
     });
 
-    // Parse Roster and Player Actions
     const homePlayers = [];
     const events = [];
+    const playerStatsSummary = [];
     let homeTotalGoals = 0;
     let awayTotalGoals = 0;
 
-    // Scan for player rows (Cap, Name, Offense, Defense)
+    // Parse Field Players (Rows with Cap + Name)
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       if (!r || r.length < 2) continue;
@@ -142,37 +173,56 @@ export class ImporterEngine {
 
       if (capVal !== null && nameVal) {
         const isGk = capVal === 1 || capVal === 13 || nameVal.toLowerCase().includes('dallas') || nameVal.toLowerCase().includes('summers');
-        homePlayers.push({
+        
+        let pos = 'Attacker';
+        if (isGk) pos = 'GK';
+        else if (capVal === 2 || capVal === 6 || capVal === 10) pos = 'Driver';
+        else if (capVal === 4 || capVal === 9 || capVal === 16) pos = 'Defender';
+        else if (capVal === 7 || capVal === 12 || capVal === 19) pos = 'Center';
+
+        const playerObj = {
           cap: capVal,
           name: nameVal,
-          pos: isGk ? 'GK' : 'Field',
+          pos,
           isStarter: capVal <= 7 || capVal === 1,
           isGk
+        };
+        homePlayers.push(playerObj);
+
+        // Parse stats columns:
+        // Col 2: Off Cage, Col 3: Miss, Col 4: 5M Goal, Col 5: 6on5 Goal, Col 6: 2M Goal, Col 7: Act Goal
+        // Col 8: TO, Col 9: Bad Pass, Col 10: Steal, Col 11: TO Forced, Col 12: 5M Excl, Col 13: Reg Excl, Col 14: Block, Col 15: 1on1
+        const missOffCage = this.parseCellCount(r[2]);
+        const missReg = this.parseCellCount(r[3]);
+        const goals5m = this.parseCellCount(r[4]);
+        const goals6on5 = this.parseCellCount(r[5]);
+        const goals2m = this.parseCellCount(r[6]);
+        const goalsAct = this.parseCellCount(r[7]);
+        const turnovers = this.parseCellCount(r[8]) + this.parseCellCount(r[9]);
+        const steals = this.parseCellCount(r[10]) + this.parseCellCount(r[12]);
+        const toForced = this.parseCellCount(r[11]);
+        const excl5m = this.parseCellCount(r[14]);
+        const exclusions = this.parseCellCount(r[13]) + this.parseCellCount(r[15]);
+        const blocks = this.parseCellCount(r[16]) || this.parseCellCount(r[14]);
+        const oneOnOne = this.parseCellCount(r[18]) || this.parseCellCount(r[19]);
+
+        const totalPlayerGoals = goals5m + goals6on5 + goals2m + goalsAct;
+
+        playerStatsSummary.push({
+          cap: capVal,
+          name: nameVal,
+          goals: totalPlayerGoals,
+          misses: missOffCage + missReg,
+          steals,
+          blocks,
+          turnovers,
+          exclusions
         });
 
-        // Parse numerical actions across columns:
-        // Col 2: Off Cage, Col 3: Miss, Col 4: 5M Goal, Col 5: 6on5 Goal, Col 6: 2M Goal, Col 7: Act Goal, Col 8: TO, Col 10: Steal, Col 11: TO Forced, Col 13: Excl, Col 14: Block
-        const parseColNum = (idx) => {
-          const val = parseInt(r[idx]);
-          return !isNaN(val) && val > 0 ? val : 0;
-        };
-
-        const missOffCage = parseColNum(2);
-        const missReg = parseColNum(3);
-        const goals5m = parseColNum(4);
-        const goals6on5 = parseColNum(5);
-        const goals2m = parseColNum(6);
-        const goalsAct = parseColNum(7);
-        const turnovers = parseColNum(8);
-        const steals = parseColNum(10);
-        const toForced = parseColNum(11);
-        const exclusions = parseColNum(13);
-        const blocks = parseColNum(14);
-
-        // Generate synthetic timeline events from stats counts
+        // Generate synthetic play-by-play events from parsed stats
         const addEvents = (count, type, shotType, isGoal, desc) => {
           for (let k = 0; k < count; k++) {
-            const q = Math.min(4, Math.floor((events.length / 8)) + 1);
+            const q = Math.min(4, Math.floor((events.length / 6)) + 1);
             events.push({
               id: 'ev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
               team: 'home',
@@ -182,31 +232,61 @@ export class ImporterEngine {
               targetZone: 'top_right',
               poolX: 75,
               poolY: 50,
-              desc: `${desc} by #${capVal} ${nameVal}`,
+              desc: `${desc} by Damien #${capVal} ${nameVal}`,
               isGoal,
               q,
-              clockSec: Math.max(10, 420 - (events.length * 18)),
-              timeStr: state.formatTime(Math.max(10, 420 - (events.length * 18)))
+              clockSec: Math.max(10, 420 - (events.length * 20)),
+              timeStr: state.formatTime(Math.max(10, 420 - (events.length * 20)))
             });
             if (isGoal) homeTotalGoals++;
           }
         };
 
-        addEvents(goals5m, 'goal', 'penalty', true, 'GOAL (5M Penalty)');
-        addEvents(goals6on5, 'goal', '6on5', true, 'GOAL (6-on-5 Man Up)');
-        addEvents(goals2m, 'goal', 'center', true, 'GOAL (2M Center Set)');
-        addEvents(goalsAct, 'goal', 'action', true, 'GOAL (Action Shot)');
-        addEvents(missOffCage, 'miss', 'action', false, 'Miss Off Cage');
-        addEvents(missReg, 'miss', 'action', false, 'Missed Shot');
-        addEvents(steals, 'steal', null, false, 'Steal');
-        addEvents(blocks, 'block', null, false, 'Field Block');
-        addEvents(turnovers, 'turnover', null, false, 'Turnover');
-        addEvents(exclusions, 'exclusion', null, false, '20s Exclusion Foul');
+        if (goals5m > 0) addEvents(goals5m, 'goal', 'penalty', true, 'GOAL (5M Penalty)');
+        if (goals6on5 > 0) addEvents(goals6on5, 'goal', '6on5', true, 'GOAL (6-on-5 Man Up)');
+        if (goals2m > 0) addEvents(goals2m, 'goal', 'center', true, 'GOAL (2M Center Set)');
+        if (goalsAct > 0) addEvents(goalsAct, 'goal', 'action', true, 'GOAL (Action Shot)');
+        if (missOffCage > 0) addEvents(missOffCage, 'miss', 'action', false, 'Miss Off Cage');
+        if (missReg > 0) addEvents(missReg, 'miss', 'action', false, 'Missed Shot');
+        if (steals > 0) addEvents(steals, 'steal', null, false, 'Steal');
+        if (blocks > 0) addEvents(blocks, 'block', null, false, 'Field Block');
+        if (turnovers > 0) addEvents(turnovers, 'turnover', null, false, 'Turnover');
+        if (exclusions > 0) addEvents(exclusions, 'exclusion', null, false, '20s Exclusion Foul');
       }
     }
 
-    // Default Opponent Roster & Score
-    awayTotalGoals = Math.max(0, Math.round(homeTotalGoals * 0.75));
+    // Check Quarter Scores rows (Rows 25 to 30)
+    let parsedQuarterDamien = [0, 0, 0, 0, 0];
+    let parsedQuarterOpp = [0, 0, 0, 0, 0];
+
+    rows.forEach(r => {
+      const rowStr = r.join(' ').toLowerCase();
+      if (rowStr.includes('damien') && r.length >= 18) {
+        for (let q = 0; q < 5; q++) {
+          const val = this.parseCellCount(r[13 + q]);
+          if (val > 0) parsedQuarterDamien[q] = val;
+        }
+      } else if (rowStr.includes('opp') && r.length >= 18) {
+        for (let q = 0; q < 5; q++) {
+          const val = this.parseCellCount(r[13 + q]);
+          if (val > 0) parsedQuarterOpp[q] = val;
+        }
+      }
+    });
+
+    const sumQDamien = parsedQuarterDamien.reduce((a, b) => a + b, 0);
+    const sumQOpp = parsedQuarterOpp.reduce((a, b) => a + b, 0);
+
+    if (sumQDamien > 0 && homeTotalGoals === 0) {
+      homeTotalGoals = sumQDamien;
+    }
+    if (sumQOpp > 0) {
+      awayTotalGoals = sumQOpp;
+    } else {
+      awayTotalGoals = Math.max(0, Math.round(homeTotalGoals * 0.75));
+    }
+
+    // Default Opponent Roster
     const awayPlayers = [
       { cap: 1, name: 'Opponent Goalie', pos: 'GK', isStarter: true, isGk: true },
       { cap: 2, name: 'Opponent Player 2', pos: 'Driver', isStarter: true, isGk: false },
@@ -219,10 +299,10 @@ export class ImporterEngine {
 
     // Build Match Object
     const matchObj = {
-      id: 'damien_match_' + Date.now(),
+      id: 'damien_game_' + Date.now(),
       date: matchDate,
       location,
-      tournament: 'Baseline League Match',
+      tournament: 'Damien Varsity Match',
       currentQuarter: 4,
       clockSec: 0,
       shotClockSec: 30,
@@ -245,7 +325,8 @@ export class ImporterEngine {
         timeoutsRemaining: 2,
         roster: awayPlayers
       },
-      events
+      events,
+      playerStatsSummary
     };
 
     return matchObj;
@@ -364,26 +445,94 @@ export class ImporterEngine {
     return true;
   }
 
-  // 9. Generate Sample CSV Template for Google Sheets
-  getSampleRosterCSV() {
-    return `Cap Number,Player Name,Position,Starter
-1,Brennan Dallas,GK,Yes
-2,Diego Negrete,Driver,Yes
-3,Jacob Hong,Attacker,Yes
-4,Jorge Solis,Defender,Yes
-5,Colin Ferrer,Attacker,Yes
-6,Christian Chacon,Driver,Yes
-7,Maddox Redfearn,Center,Yes
-8,Jonathan Jimenez,Attacker,No
-9,Kiki Gore,Defender,No
-10,Niko Echieverria,Driver,No
-11,Luke German,Attacker,No
-12,David Vicario,Center,No
-13,Joseph Summers,GK,No
-14,Landen Garcia,Attacker,No
-15,Logan Diaz,Defender,No
-16,Aaron Fulmer,Defender,No
-19,Diego Solis,Center,No`;
+  // 9. Generate Populated Sample Stats for Testing Google Sheets Layout
+  generateSampleDamienStatsMatch(opponentName = 'Los Osos Grizzlies') {
+    const players = [...DAMIEN_VARSITY_ROSTER];
+    const events = [];
+
+    const statsPlan = [
+      { cap: 2, goals: 2, steals: 3, blocks: 1, turnovers: 1, excl: 1 },
+      { cap: 3, goals: 3, steals: 1, blocks: 0, turnovers: 0, excl: 0 },
+      { cap: 4, goals: 1, steals: 2, blocks: 2, turnovers: 1, excl: 1 },
+      { cap: 6, goals: 2, steals: 1, blocks: 0, turnovers: 0, excl: 0 },
+      { cap: 7, goals: 3, steals: 0, blocks: 1, turnovers: 2, excl: 2 },
+      { cap: 10, goals: 1, steals: 1, blocks: 0, turnovers: 0, excl: 0 },
+      { cap: 12, goals: 2, steals: 1, blocks: 1, turnovers: 0, excl: 0 }
+    ];
+
+    let totalGoals = 0;
+    statsPlan.forEach(p => {
+      const pl = players.find(x => x.cap === p.cap);
+      const name = pl ? pl.name : `Player #${p.cap}`;
+
+      for (let g = 0; g < p.goals; g++) {
+        events.push({
+          id: 'ev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          team: 'home',
+          cap: p.cap,
+          type: 'goal',
+          shotType: g === 0 ? '6on5' : (g === 1 ? 'center' : 'action'),
+          desc: `GOAL! Damien #${p.cap} ${name}`,
+          isGoal: true,
+          q: Math.min(4, Math.floor(events.length / 5) + 1),
+          clockSec: 360 - (events.length * 15),
+          timeStr: state.formatTime(360 - (events.length * 15))
+        });
+        totalGoals++;
+      }
+
+      for (let s = 0; s < p.steals; s++) {
+        events.push({
+          id: 'ev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          team: 'home',
+          cap: p.cap,
+          type: 'steal',
+          desc: `Steal by Damien #${p.cap} ${name}`,
+          isGoal: false,
+          q: Math.min(4, Math.floor(events.length / 5) + 1),
+          clockSec: 320 - (events.length * 15),
+          timeStr: state.formatTime(320 - (events.length * 15))
+        });
+      }
+    });
+
+    const matchObj = {
+      id: 'damien_sample_' + Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      location: 'Damien Aquatic Complex',
+      tournament: 'Baseline League Championship',
+      currentQuarter: 4,
+      clockSec: 0,
+      shotClockSec: 30,
+      isFinal: true,
+      homeTeam: {
+        name: 'Damien Spartans',
+        shortName: 'DMS',
+        capColor: '#0E3D2F',
+        capTextColor: '#FFB81C',
+        score: totalGoals,
+        timeoutsRemaining: 2,
+        roster: players
+      },
+      awayTeam: {
+        name: opponentName,
+        shortName: opponentName.substring(0, 3).toUpperCase(),
+        capColor: '#1e3a8a',
+        capTextColor: '#ffffff',
+        score: 9,
+        timeoutsRemaining: 1,
+        roster: [
+          { cap: 1, name: 'Opponent Goalie', pos: 'GK', isStarter: true, isGk: true },
+          { cap: 2, name: 'Opponent Player 2', pos: 'Driver', isStarter: true, isGk: false },
+          { cap: 3, name: 'Opponent Player 3', pos: 'Attacker', isStarter: true, isGk: false },
+          { cap: 4, name: 'Opponent Player 4', pos: 'Center', isStarter: true, isGk: false },
+          { cap: 5, name: 'Opponent Player 5', pos: 'Defender', isStarter: true, isGk: false }
+        ]
+      },
+      events
+    };
+
+    return matchObj;
   }
 }
 

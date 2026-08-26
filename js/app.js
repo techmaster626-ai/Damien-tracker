@@ -628,6 +628,29 @@ class WaterPoloApp {
     const gameTitleEl = document.getElementById('parsed-game-title');
     const gameScoreBadge = document.getElementById('parsed-game-score-badge');
     const gameMetaEl = document.getElementById('parsed-game-meta');
+    const gameStatsTbody = document.getElementById('parsed-game-stats-tbody');
+    const sampleStatsBtn = document.getElementById('btn-load-sample-stats');
+
+    const renderParsedGameStatsTable = (match) => {
+      if (!gameStatsTbody || !match) return;
+      const summaries = match.playerStatsSummary || [];
+      if (summaries.length === 0) {
+        gameStatsTbody.innerHTML = `<tr><td colspan="7" class="text-muted text-center" style="padding: 10px;">Official Damien Roster loaded (${match.homeTeam.roster.length} players). No filled stat cells recorded in this sheet tab.</td></tr>`;
+        return;
+      }
+
+      gameStatsTbody.innerHTML = summaries.map(s => `
+        <tr>
+          <td><strong>#${s.cap}</strong></td>
+          <td>${s.name}</td>
+          <td><strong style="color: #86efac;">${s.goals}</strong></td>
+          <td>${s.misses}</td>
+          <td>${s.steals}</td>
+          <td>${s.blocks}</td>
+          <td>${s.exclusions}</td>
+        </tr>
+      `).join('');
+    };
 
     if (fetchGameBtn) {
       fetchGameBtn.onclick = async () => {
@@ -645,9 +668,10 @@ class WaterPoloApp {
             if (gameTitleEl) gameTitleEl.textContent = `${parsedMatch.homeTeam.name} vs ${parsedMatch.awayTeam.name}`;
             if (gameScoreBadge) gameScoreBadge.textContent = `${parsedMatch.homeTeam.score} - ${parsedMatch.awayTeam.score}`;
             if (gameMetaEl) {
-              gameMetaEl.textContent = `Date: ${parsedMatch.date} • Location: ${parsedMatch.location} • Events extracted: ${parsedMatch.events.length} goals/actions`;
+              gameMetaEl.textContent = `Date: ${parsedMatch.date} • Location: ${parsedMatch.location} • Events extracted: ${parsedMatch.events.length} goals/actions • Players: ${parsedMatch.homeTeam.roster.length}`;
             }
-            this.showToast(`✅ Successfully pulled ${opponent} game from Google Sheets!`);
+            renderParsedGameStatsTable(parsedMatch);
+            this.showToast(`✅ Successfully pulled stats from Google Sheets!`);
           }
         } catch (err) {
           alert(`Error pulling Google Sheet: ${err.message}`);
@@ -655,6 +679,21 @@ class WaterPoloApp {
           fetchGameBtn.textContent = '⚡ Pull Game from Google Sheets';
           fetchGameBtn.disabled = false;
         }
+      };
+    }
+
+    if (sampleStatsBtn) {
+      sampleStatsBtn.onclick = () => {
+        const opponent = document.getElementById('input-game-opponent-name')?.value || 'Los Osos Grizzlies';
+        parsedMatch = importer.generateSampleDamienStatsMatch(opponent);
+        if (gamePreviewCard) gamePreviewCard.style.display = 'block';
+        if (gameTitleEl) gameTitleEl.textContent = `${parsedMatch.homeTeam.name} vs ${parsedMatch.awayTeam.name}`;
+        if (gameScoreBadge) gameScoreBadge.textContent = `${parsedMatch.homeTeam.score} - ${parsedMatch.awayTeam.score}`;
+        if (gameMetaEl) {
+          gameMetaEl.textContent = `Date: ${parsedMatch.date} • Location: ${parsedMatch.location} • Events: ${parsedMatch.events.length} goals/actions`;
+        }
+        renderParsedGameStatsTable(parsedMatch);
+        this.showToast(`⚡ Generated match stats for ${opponent}!`);
       };
     }
 
