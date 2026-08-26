@@ -148,14 +148,11 @@ water-polo-stats/
 ### Option A: GitHub Pages
 1. Push this codebase to GitHub:
    ```bash
-   git init
-   git add .
-   git commit -m "feat: initial commit of Water Polo Stats Tracker with Firebase"
-   git branch -M main
-   git remote add origin https://github.com/<your-username>/water-polo-stats-tracker.git
+   git remote add origin https://github.com/techmaster626-ai/Damien-tracker.git
    git push -u origin main
    ```
-2. In repository **Settings > Pages > Build and deployment > Source**, select **GitHub Actions**.
+2. In repository **Settings > Pages > Build and deployment > Source**, select **GitHub Actions**. Your live web app will automatically be available at:
+   👉 **https://techmaster626-ai.github.io/Damien-tracker/**
 
 ### Option B: Firebase Hosting
 ```bash
