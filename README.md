@@ -2,6 +2,10 @@
 
 > Official Water Polo stats tracker, scorekeeping, analytics, and live broadcast overlay platform for **Damien High School Spartans** (La Verne, CA • Baseline League / CIF Southern Section). Built to CIF-SS, NCAA & World Aquatics electronic scorekeeping standards with Firebase Cloud Sync.
 
+🌐 **Live Web App:** **[https://techmaster626-ai.github.io/Damien-tracker/](https://techmaster626-ai.github.io/Damien-tracker/)**
+
+[![Live Demo](https://img.shields.io/badge/Live%20App-techmaster626--ai.github.io%2FDamien--tracker-0E3D2F?style=for-the-badge&logo=github)](https://techmaster626-ai.github.io/Damien-tracker/)
+
 [![Damien Green & Spartan Gold](https://img.shields.io/badge/Damien%20Colors-%230E3D2F%20%7C%20%23FFB81C-0E3D2F)](styles/)
 [![Mascot: Spartans](https://img.shields.io/badge/Mascot-Spartans%20%E2%9A%94%EF%B8%8F-FFB81C)](js/presets.js)
 [![CIF-SS Baseline League](https://img.shields.io/badge/League-CIF--SS%20%7C%20Baseline%20League-10B981)](#-cif-ss--baseline-league-support)
