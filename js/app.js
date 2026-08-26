@@ -1,9 +1,11 @@
 /**
- * Main Application Orchestrator for Water Polo Stats Tracker
+ * Main Application Orchestrator for Damien Spartans Water Polo Stats Tracker
  * Handles:
  * - Scoreboard HUD controls (Clock, Shot Clock, Timeouts, Period Advancement)
  * - Rapid-Tap Action Pad & Modal Workflows (Goal, Exclusion, Save, Block, Steal, Turnover)
  * - Roster substitutions & Cap selectors
+ * - Google Sheets & CSV Roster Importer
+ * - Advanced Player Analytics & Comparison Dashboard
  * - Audio controls & Keyboard hotkeys
  * - Firebase Firestore Cloud Sync & Live Spectator Rooms
  * - Multi-view tab routing
@@ -15,6 +17,8 @@ import { PoolChartEngine } from './pool-chart.js';
 import { BoxScoreRenderer } from './boxscore.js';
 import { PlayByPlayRenderer } from './pbp.js';
 import { BroadcastEngine } from './broadcast.js';
+import { PlayerAnalyticsEngine } from './analytics.js';
+import { importer } from './importer.js';
 import { exporter } from './exporter.js';
 import { cloudSync } from './cloud-sync.js';
 import { firebaseService } from './firebase-config.js';
@@ -26,7 +30,12 @@ class WaterPoloApp {
     this.boxScore = null;
     this.pbp = null;
     this.broadcast = null;
-    this.activeTab = 'scoring'; // 'scoring' | 'boxscore' | 'pbp' | 'broadcast' | 'export'
+    this.analytics = null;
+    this.activeTab = 'scoring'; // 'scoring' | 'analytics' | 'boxscore' | 'pbp' | 'broadcast' | 'export'
+
+    // Pending parsed roster data for importer
+    this.pendingParsedRoster = [];
+    this.importTargetTeam = 'home';
 
     // Temporary action modal state
     this.pendingAction = {
@@ -53,6 +62,9 @@ class WaterPoloApp {
     this.bindRapidActionPad();
     this.bindModals();
     this.bindCloudSyncModal();
+    this.bindImporterModal();
+    this.bindAddPlayerModal();
+    this.bindGettingStartedBanner();
     this.bindKeyboardHotkeys();
 
     // Subscribe to state changes for UI refreshes
@@ -60,11 +72,13 @@ class WaterPoloApp {
       this.updateScoreboardHUD();
       this.updateExclusionBox();
       this.updateRosterButtons();
+      this.checkGettingStartedBanner();
     });
 
     this.updateScoreboardHUD();
     this.updateExclusionBox();
     this.updateRosterButtons();
+    this.checkGettingStartedBanner();
 
     // Initialize Firebase in background
     await firebaseService.init();
@@ -93,6 +107,51 @@ class WaterPoloApp {
     setTimeout(() => {
       toast.remove();
     }, duration);
+  }
+
+  // --- ONBOARDING & GETTING STARTED BANNER ---
+
+  checkGettingStartedBanner() {
+    const banner = document.getElementById('getting-started-banner');
+    if (!banner) return;
+
+    const hasPlayers = (state.match.homeTeam.roster && state.match.homeTeam.roster.length > 0) ||
+                       (state.match.awayTeam.roster && state.match.awayTeam.roster.length > 0);
+    const dismissed = sessionStorage.getItem('wps_gs_dismissed');
+
+    if (!hasPlayers && !dismissed) {
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  bindGettingStartedBanner() {
+    const loadDemoBtn = document.getElementById('btn-gs-load-demo');
+    const importSheetsBtn = document.getElementById('btn-gs-import-sheets');
+    const dismissBtn = document.getElementById('btn-gs-dismiss');
+    const banner = document.getElementById('getting-started-banner');
+
+    if (loadDemoBtn) {
+      loadDemoBtn.onclick = () => {
+        state.loadMatchPreset('getting_started_demo');
+        this.showToast('✅ Loaded Getting Started Demo Match!');
+        if (banner) banner.style.display = 'none';
+      };
+    }
+
+    if (importSheetsBtn) {
+      importSheetsBtn.onclick = () => {
+        this.openImporterModal('home');
+      };
+    }
+
+    if (dismissBtn && banner) {
+      dismissBtn.onclick = () => {
+        sessionStorage.setItem('wps_gs_dismissed', 'true');
+        banner.style.display = 'none';
+      };
+    }
   }
 
   // --- TOP BAR & SCOREBOARD HUD ---
@@ -137,7 +196,8 @@ class WaterPoloApp {
 
         <div class="nav-tabs-wrapper">
           <button class="nav-tab-btn active" data-tab="scoring">⚡ Live Scoring & Pool</button>
-          <button class="nav-tab-btn" data-tab="boxscore">📊 Box Score & Analytics</button>
+          <button class="nav-tab-btn" data-tab="analytics">📈 Player Analytics</button>
+          <button class="nav-tab-btn" data-tab="boxscore">📊 Box Score</button>
           <button class="nav-tab-btn" data-tab="pbp">📜 Play-by-Play</button>
           <button class="nav-tab-btn" data-tab="broadcast">🎥 Broadcast Scorebug</button>
           <button class="nav-tab-btn" data-tab="export">💾 Export & Reports</button>
@@ -148,8 +208,8 @@ class WaterPoloApp {
             ☁️ Cloud Sync
           </button>
           <select id="select-preset-match" class="preset-dropdown">
-            <option value="damien_cif_final">Damien Spartans vs Los Osos (CIF Final)</option>
-            <option value="olympic_final">Demo: USA vs Hungary (Olympic Final)</option>
+            <option value="">-- Load Demo Match --</option>
+            <option value="getting_started_demo">Getting Started Demo (Damien vs Los Osos)</option>
           </select>
           <button class="action-btn-header secondary" id="btn-new-match-modal">+ New Match</button>
           <button class="action-btn-header icon-only" id="btn-toggle-sound" title="Toggle Whistle/Buzzer Audio">
@@ -175,8 +235,10 @@ class WaterPoloApp {
     const presetSelect = document.getElementById('select-preset-match');
     if (presetSelect) {
       presetSelect.addEventListener('change', (e) => {
-        state.loadMatchPreset(e.target.value);
-        this.showToast(`Loaded ${e.target.options[e.target.selectedIndex].text}`);
+        if (e.target.value) {
+          state.loadMatchPreset(e.target.value);
+          this.showToast(`Loaded ${e.target.options[e.target.selectedIndex].text}`);
+        }
       });
     }
 
@@ -211,7 +273,9 @@ class WaterPoloApp {
     const target = document.getElementById(`view-${tabName}`);
     if (target) target.classList.add('active');
 
-    if (tabName === 'broadcast' && this.broadcast) {
+    if (tabName === 'analytics' && this.analytics) {
+      this.analytics.render();
+    } else if (tabName === 'broadcast' && this.broadcast) {
       this.broadcast.openBroadcastWindow();
     }
   }
@@ -226,6 +290,11 @@ class WaterPoloApp {
           this.pendingAction.poolY = coords.y;
         }
       });
+    }
+
+    const analyticsMount = document.getElementById('analytics-view-mount');
+    if (analyticsMount) {
+      this.analytics = new PlayerAnalyticsEngine(analyticsMount);
     }
 
     const boxscoreMount = document.getElementById('boxscore-view-mount');
@@ -257,11 +326,15 @@ class WaterPoloApp {
     // Team Names & Scores
     const homeNameEl = document.getElementById('hud-home-name');
     const awayNameEl = document.getElementById('hud-away-name');
+    const homeRosterTitle = document.getElementById('roster-header-home-name');
+    const awayRosterTitle = document.getElementById('roster-header-away-name');
     const homeScoreEl = document.getElementById('hud-home-score');
     const awayScoreEl = document.getElementById('hud-away-score');
 
     if (homeNameEl) homeNameEl.textContent = home.name;
     if (awayNameEl) awayNameEl.textContent = away.name;
+    if (homeRosterTitle) homeRosterTitle.textContent = `${home.name} Roster`;
+    if (awayRosterTitle) awayRosterTitle.textContent = `${away.name} Roster`;
     if (homeScoreEl) homeScoreEl.textContent = home.score;
     if (awayScoreEl) awayScoreEl.textContent = away.score;
 
@@ -375,6 +448,26 @@ class WaterPoloApp {
       const stats = state.calculateStats();
       const teamStats = teamKey === 'home' ? stats.home : stats.away;
 
+      if (!team.roster || team.roster.length === 0) {
+        container.innerHTML = `
+          <div class="roster-empty-placeholder">
+            <p>No players added yet.</p>
+            <div class="empty-roster-actions">
+              <button class="empty-act-btn import" data-targetteam="${teamKey}">📥 Import Google Sheet / CSV</button>
+              <button class="empty-act-btn add" data-targetteam="${teamKey}">➕ Add Player</button>
+            </div>
+          </div>
+        `;
+
+        container.querySelector('.empty-act-btn.import')?.addEventListener('click', () => {
+          this.openImporterModal(teamKey);
+        });
+        container.querySelector('.empty-act-btn.add')?.addEventListener('click', () => {
+          this.openAddPlayerModal(teamKey);
+        });
+        return;
+      }
+
       container.innerHTML = team.roster.map(player => {
         const playerStat = teamStats.players[player.cap] || { goals: 0, exclusionsCommitted: 0 };
         const isFoulOut = playerStat.exclusionsCommitted >= 3;
@@ -385,7 +478,7 @@ class WaterPoloApp {
         return `
           <button type="button" class="roster-cap-btn ${isSelected ? 'selected' : ''} ${isFoulOut ? 'foul-out' : ''} ${!isStarter ? 'on-bench' : ''}" 
                   data-team="${teamKey}" data-cap="${player.cap}">
-            <div class="cap-number-badge" style="background-color: ${team.capColor}; color: ${team.capTextColor}; border: 1.5px solid #64748b;">
+            <div class="cap-number-badge" style="background-color: ${team.capColor}; color: ${team.capTextColor}; border: 1.5px solid #ffb81c;">
               #${player.cap}
             </div>
             <div class="cap-meta-details">
@@ -414,6 +507,17 @@ class WaterPoloApp {
 
     renderRosterGrid('home', 'home-roster-selector-grid');
     renderRosterGrid('away', 'away-roster-selector-grid');
+
+    // Header roster action buttons (+ Add / Import)
+    const addHomeBtn = document.getElementById('btn-add-home-player');
+    const addAwayBtn = document.getElementById('btn-add-away-player');
+    const impHomeBtn = document.getElementById('btn-import-home-roster');
+    const impAwayBtn = document.getElementById('btn-import-away-roster');
+
+    if (addHomeBtn) addHomeBtn.onclick = () => this.openAddPlayerModal('home');
+    if (addAwayBtn) addAwayBtn.onclick = () => this.openAddPlayerModal('away');
+    if (impHomeBtn) impHomeBtn.onclick = () => this.openImporterModal('home');
+    if (impAwayBtn) impAwayBtn.onclick = () => this.openImporterModal('away');
   }
 
   // --- SCOREBOARD EVENTS & CLOCKS ---
@@ -511,19 +615,19 @@ class WaterPoloApp {
     }
   }
 
-  // Direct fast actions (1-tap)
   logSaveDirect(team, cap) {
     const oppTeam = team === 'home' ? 'away' : 'home';
-    const oppGk = 1;
     const teamObj = team === 'home' ? state.match.homeTeam : state.match.awayTeam;
-    const playerName = teamObj.roster.find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
+    const oppTeamObj = oppTeam === 'home' ? state.match.homeTeam : state.match.awayTeam;
+    const oppGk = (oppTeamObj.roster || []).find(p => p.isGk)?.cap || 1;
+    const playerName = (teamObj.roster || []).find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
 
     state.logEvent({
       team: oppTeam,
       type: 'save',
       cap: cap || 2,
       goalieCap: oppGk,
-      desc: `Save by ${oppTeam.toUpperCase()} GK on shot from ${teamObj.name} #${cap || '?'} ${playerName}`,
+      desc: `Save by ${oppTeamObj.name} GK on shot from ${teamObj.name} #${cap || '?'} ${playerName}`,
       poolX: this.pendingAction.poolX,
       poolY: this.pendingAction.poolY,
       isGoal: false
@@ -533,7 +637,7 @@ class WaterPoloApp {
 
   logStealDirect(team, cap) {
     const teamObj = team === 'home' ? state.match.homeTeam : state.match.awayTeam;
-    const playerName = teamObj.roster.find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
+    const playerName = (teamObj.roster || []).find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
 
     state.logEvent({
       team,
@@ -546,7 +650,7 @@ class WaterPoloApp {
 
   logBlockDirect(team, cap) {
     const teamObj = team === 'home' ? state.match.homeTeam : state.match.awayTeam;
-    const playerName = teamObj.roster.find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
+    const playerName = (teamObj.roster || []).find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
 
     state.logEvent({
       team,
@@ -559,7 +663,7 @@ class WaterPoloApp {
 
   logSprintDirect(team, cap) {
     const teamObj = team === 'home' ? state.match.homeTeam : state.match.awayTeam;
-    const playerName = teamObj.roster.find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
+    const playerName = (teamObj.roster || []).find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
 
     state.logEvent({
       team,
@@ -597,6 +701,170 @@ class WaterPoloApp {
     });
   }
 
+  // --- GOOGLE SHEETS & CSV IMPORTER MODAL ---
+
+  openImporterModal(targetTeam = 'home') {
+    const modal = document.getElementById('modal-roster-importer');
+    if (!modal) return;
+
+    this.importTargetTeam = targetTeam;
+    const targetSelect = document.getElementById('import-target-team-select');
+    if (targetSelect) targetSelect.value = targetTeam;
+
+    const samplePreview = document.getElementById('sample-csv-preview');
+    if (samplePreview) samplePreview.textContent = importer.getSampleRosterCSV();
+
+    // Reset preview box
+    const previewBox = document.getElementById('importer-preview-box');
+    const confirmBtn = document.getElementById('btn-confirm-apply-roster');
+    if (previewBox) previewBox.style.display = 'none';
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    modal.classList.add('active');
+  }
+
+  bindImporterModal() {
+    const modal = document.getElementById('modal-roster-importer');
+    if (!modal) return;
+
+    // Tabs inside importer
+    const tabs = modal.querySelectorAll('.cloud-tab-btn');
+    tabs.forEach(tab => {
+      tab.onclick = () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        modal.querySelectorAll('.cloud-tab-content').forEach(c => c.classList.remove('active'));
+        const target = modal.querySelector(`#imptab-${tab.dataset.imptab}`);
+        if (target) target.classList.add('active');
+      };
+    });
+
+    // Pull from Google Sheets
+    const fetchSheetsBtn = document.getElementById('btn-fetch-google-sheet');
+    const sheetsInput = document.getElementById('input-sheets-url');
+
+    if (fetchSheetsBtn) {
+      fetchSheetsBtn.onclick = async () => {
+        const urlOrId = sheetsInput?.value?.trim();
+        if (!urlOrId) return alert('Please enter a valid Google Sheets URL or ID');
+
+        fetchSheetsBtn.disabled = true;
+        fetchSheetsBtn.textContent = 'Fetching Google Sheet...';
+
+        try {
+          const parsed = await importer.fetchFromGoogleSheetUrl(urlOrId);
+          this.displayParsedRosterPreview(parsed);
+          this.showToast(`✅ Pulled ${parsed.length} players from Google Sheets!`);
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          fetchSheetsBtn.disabled = false;
+          fetchSheetsBtn.textContent = '⚡ Pull from Google Sheets';
+        }
+      };
+    }
+
+    // Parse Pasted CSV
+    const parsePasteBtn = document.getElementById('btn-parse-pasted-csv');
+    const pasteArea = document.getElementById('textarea-paste-csv');
+
+    if (parsePasteBtn) {
+      parsePasteBtn.onclick = () => {
+        const text = pasteArea?.value;
+        if (!text) return alert('Please paste CSV or spreadsheet table data');
+        const parsed = importer.parseRosterCSV(text);
+        this.displayParsedRosterPreview(parsed);
+      };
+    }
+
+    // Confirm & Apply Roster to Team
+    const confirmBtn = document.getElementById('btn-confirm-apply-roster');
+    const targetSelect = document.getElementById('import-target-team-select');
+
+    if (confirmBtn) {
+      confirmBtn.onclick = () => {
+        const teamKey = targetSelect?.value || 'home';
+        if (this.pendingParsedRoster.length === 0) return;
+
+        importer.applyRosterToTeam(teamKey, this.pendingParsedRoster);
+        modal.classList.remove('active');
+        this.showToast(`✅ Roster updated with ${this.pendingParsedRoster.length} players!`);
+        this.updateRosterButtons();
+        if (this.analytics) this.analytics.render();
+      };
+    }
+  }
+
+  displayParsedRosterPreview(roster) {
+    const previewBox = document.getElementById('importer-preview-box');
+    const tableBody = document.querySelector('#parsed-preview-table tbody');
+    const countEl = document.getElementById('parsed-count');
+    const confirmBtn = document.getElementById('btn-confirm-apply-roster');
+
+    if (!roster || roster.length === 0) {
+      alert('No valid players could be parsed. Check format.');
+      return;
+    }
+
+    this.pendingParsedRoster = roster;
+    if (countEl) countEl.textContent = roster.length;
+    if (tableBody) {
+      tableBody.innerHTML = roster.map(p => `
+        <tr>
+          <td><strong>#${p.cap}</strong></td>
+          <td>${p.name}</td>
+          <td>${p.pos || 'Player'}</td>
+          <td>${p.isStarter ? '<span class="status-badge green">Starter</span>' : 'Bench'}</td>
+        </tr>
+      `).join('');
+    }
+
+    if (previewBox) previewBox.style.display = 'block';
+    if (confirmBtn) confirmBtn.disabled = false;
+  }
+
+  // --- ADD SINGLE PLAYER MODAL ---
+
+  openAddPlayerModal(targetTeam = 'home') {
+    const modal = document.getElementById('modal-add-player');
+    if (!modal) return;
+
+    const teamSelect = document.getElementById('add-player-team-select');
+    if (teamSelect) teamSelect.value = targetTeam;
+
+    modal.classList.add('active');
+  }
+
+  bindAddPlayerModal() {
+    const modal = document.getElementById('modal-add-player');
+    const submitBtn = document.getElementById('btn-submit-add-player');
+    if (!modal || !submitBtn) return;
+
+    submitBtn.onclick = () => {
+      const teamKey = document.getElementById('add-player-team-select')?.value || 'home';
+      const cap = parseInt(document.getElementById('add-player-cap')?.value) || 2;
+      const name = document.getElementById('add-player-name')?.value?.trim() || `Player ${cap}`;
+      const pos = document.getElementById('add-player-pos')?.value || 'Attacker';
+      const isStarter = document.getElementById('add-player-starter')?.checked ?? true;
+      const isGk = pos.toUpperCase().includes('GK') || cap === 1 || cap === 13;
+
+      const team = teamKey === 'home' ? state.match.homeTeam : state.match.awayTeam;
+      if (!team.roster) team.roster = [];
+
+      // Remove existing cap if present
+      team.roster = team.roster.filter(p => p.cap !== cap);
+      team.roster.push({ cap, name, pos, isStarter, isGk });
+      team.roster.sort((a, b) => a.cap - b.cap);
+
+      state.rebuildActiveLineup();
+      state.notify('roster_updated', { team: teamKey });
+
+      modal.classList.remove('active');
+      this.showToast(`Added #${cap} ${name} to ${team.name}!`);
+      this.updateRosterButtons();
+    };
+  }
+
   openGoalModal(team, cap) {
     const modal = document.getElementById('modal-log-goal');
     if (!modal) return;
@@ -606,13 +874,13 @@ class WaterPoloApp {
     const assistSelect = document.getElementById('goal-assist-select');
 
     if (scorerSelect) {
-      scorerSelect.innerHTML = teamObj.roster.map(p => `
+      scorerSelect.innerHTML = (teamObj.roster || []).map(p => `
         <option value="${p.cap}" ${p.cap === cap ? 'selected' : ''}>#${p.cap} ${p.name} (${p.pos || 'Player'})</option>
       `).join('');
     }
 
     if (assistSelect) {
-      assistSelect.innerHTML = `<option value="">-- Unassisted Goal --</option>` + teamObj.roster.map(p => `
+      assistSelect.innerHTML = `<option value="">-- Unassisted Goal --</option>` + (teamObj.roster || []).map(p => `
         <option value="${p.cap}">#${p.cap} ${p.name}</option>
       `).join('');
     }
@@ -636,8 +904,8 @@ class WaterPoloApp {
       const poolX = this.pendingAction.poolX || 50;
       const poolY = this.pendingAction.poolY || 55;
 
-      const scorerName = teamObj.roster.find(p => p.cap === scorerCap)?.name || `Cap #${scorerCap}`;
-      const assistName = assistCap ? teamObj.roster.find(p => p.cap === assistCap)?.name : null;
+      const scorerName = (teamObj.roster || []).find(p => p.cap === scorerCap)?.name || `Cap #${scorerCap}`;
+      const assistName = assistCap ? (teamObj.roster || []).find(p => p.cap === assistCap)?.name : null;
 
       let desc = `GOAL! ${teamObj.name} #${scorerCap} ${scorerName} (${shotType.toUpperCase()})`;
       if (assistName) desc += ` [Assist: #${assistCap} ${assistName}]`;
@@ -673,13 +941,13 @@ class WaterPoloApp {
     const drawnSelect = document.getElementById('exclusion-drawn-select');
 
     if (offenderSelect) {
-      offenderSelect.innerHTML = teamObj.roster.map(p => `
+      offenderSelect.innerHTML = (teamObj.roster || []).map(p => `
         <option value="${p.cap}" ${p.cap === cap ? 'selected' : ''}>#${p.cap} ${p.name}</option>
       `).join('');
     }
 
     if (drawnSelect) {
-      drawnSelect.innerHTML = `<option value="">-- None / Loose Ball --</option>` + oppTeamObj.roster.map(p => `
+      drawnSelect.innerHTML = `<option value="">-- None / Loose Ball --</option>` + (oppTeamObj.roster || []).map(p => `
         <option value="${p.cap}">#${p.cap} ${p.name}</option>
       `).join('');
     }
@@ -688,11 +956,11 @@ class WaterPoloApp {
     submitBtn.onclick = () => {
       const offenderCap = parseInt(offenderSelect.value);
       const drawnCap = drawnSelect.value ? parseInt(drawnSelect.value) : null;
-      const offenderName = teamObj.roster.find(p => p.cap === offenderCap)?.name || `Cap #${offenderCap}`;
+      const offenderName = (teamObj.roster || []).find(p => p.cap === offenderCap)?.name || `Cap #${offenderCap}`;
 
       let desc = `Exclusion Foul on ${teamObj.name} #${offenderCap} ${offenderName} (20s Ejection)`;
       if (drawnCap) {
-        const drawnName = oppTeamObj.roster.find(p => p.cap === drawnCap)?.name;
+        const drawnName = (oppTeamObj.roster || []).find(p => p.cap === drawnCap)?.name;
         desc += ` [Drawn by #${drawnCap} ${drawnName}]`;
       }
 
@@ -713,7 +981,7 @@ class WaterPoloApp {
 
   openPenaltyModal(team, cap) {
     const teamObj = team === 'home' ? state.match.homeTeam : state.match.awayTeam;
-    const playerName = teamObj.roster.find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
+    const playerName = (teamObj.roster || []).find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
 
     state.logEvent({
       team,
@@ -728,7 +996,7 @@ class WaterPoloApp {
 
   openMissModal(team, cap) {
     const teamObj = team === 'home' ? state.match.homeTeam : state.match.awayTeam;
-    const playerName = teamObj.roster.find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
+    const playerName = (teamObj.roster || []).find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
 
     state.logEvent({
       team,
@@ -745,7 +1013,7 @@ class WaterPoloApp {
 
   openTurnoverModal(team, cap) {
     const teamObj = team === 'home' ? state.match.homeTeam : state.match.awayTeam;
-    const playerName = teamObj.roster.find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
+    const playerName = (teamObj.roster || []).find(p => p.cap === cap)?.name || `Cap #${cap || '?'}`;
 
     state.logEvent({
       team,
@@ -789,11 +1057,10 @@ class WaterPoloApp {
 
     const submitBtn = document.getElementById('btn-submit-new-match');
     submitBtn.onclick = () => {
-      const homeName = document.getElementById('input-new-home-name')?.value || 'Home White';
-      const awayName = document.getElementById('input-new-away-name')?.value || 'Away Blue';
-      const qMin = parseInt(document.getElementById('input-new-quarter-min')?.value) || 8;
+      const homeName = document.getElementById('input-new-home-name')?.value || 'Damien Spartans';
+      const awayName = document.getElementById('input-new-away-name')?.value || 'Opponent';
 
-      state.createNewGame(homeName, awayName, qMin);
+      state.resetToBlank(homeName, awayName);
       modal.classList.remove('active');
       this.switchTab('scoring');
       this.showToast(`Created new game: ${homeName} vs ${awayName}`);
@@ -954,12 +1221,20 @@ class WaterPoloApp {
         </div>
 
         <div class="export-cards-grid">
-          <!-- Firebase Cloud Sync Card -->
+          <!-- Google Sheets Importer Card -->
           <div class="export-action-card highlight-card">
+            <div class="card-icon">📊</div>
+            <h3>Google Sheets Roster & Stats Sync</h3>
+            <p>Pull rosters directly from Google Sheets share links or copy-paste CSV spreadsheet tables.</p>
+            <button class="export-btn primary" id="btn-export-open-importer">Open Google Sheets Importer</button>
+          </div>
+
+          <!-- Firebase Cloud Sync Card -->
+          <div class="export-action-card">
             <div class="card-icon">☁️</div>
             <h3>Firebase Cloud Sync & Live Stream</h3>
             <p>Sync live game scores and shot charts in real-time across poolside tablets, spectator phones, and stream overlays.</p>
-            <button class="export-btn primary" id="btn-export-cloud-modal">Open Cloud Sync</button>
+            <button class="export-btn secondary" id="btn-export-cloud-modal">Open Cloud Sync</button>
           </div>
 
           <!-- MaxPreps Card -->
@@ -980,7 +1255,7 @@ class WaterPoloApp {
 
           <!-- CSV Downloads -->
           <div class="export-action-card">
-            <div class="card-icon">📊</div>
+            <div class="card-icon">📁</div>
             <h3>CSV Spreadsheet Export</h3>
             <p>Download structured .CSV files for Microsoft Excel, Google Sheets, or custom statistical models.</p>
             <div class="dual-btn-row">
@@ -1027,6 +1302,9 @@ class WaterPoloApp {
   }
 
   bindExportEvents() {
+    const impBtn = document.getElementById('btn-export-open-importer');
+    if (impBtn) impBtn.onclick = () => this.openImporterModal('home');
+
     const cloudBtn = document.getElementById('btn-export-cloud-modal');
     if (cloudBtn) cloudBtn.onclick = () => this.openCloudSyncModal();
 

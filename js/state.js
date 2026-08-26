@@ -4,7 +4,7 @@
  * events play-by-play, active lineups, undo/redo stack, and FINA/NCAA stat calculations.
  */
 
-import { PRESET_MATCHES, createNewMatchTemplate } from './presets.js';
+import { PRESET_MATCHES, createBlankMatch } from './presets.js';
 import { sound } from './audio.js';
 
 class MatchState {
@@ -12,8 +12,8 @@ class MatchState {
     this.listeners = new Set();
     this.match = null;
     this.activeLineups = {
-      home: new Set([1, 2, 3, 4, 5, 6, 7]),
-      away: new Set([1, 2, 3, 4, 5, 6, 7])
+      home: new Set(),
+      away: new Set()
     };
     this.activeExclusions = []; // { id, team: 'home'|'away', cap, name, remainingSec, startClockSec, quarter }
     this.shotClock = 30;
@@ -27,16 +27,16 @@ class MatchState {
   }
 
   init() {
-    // Load last saved match or default to Damien Spartans CIF Championship demo
+    // Start with a clean blank match with no players by default or load saved
     const saved = localStorage.getItem('wps_current_match');
     if (saved) {
       try {
         this.match = JSON.parse(saved);
       } catch (e) {
-        this.match = JSON.parse(JSON.stringify(PRESET_MATCHES.damien_cif_final));
+        this.match = createBlankMatch('Damien Spartans', 'Opponent');
       }
     } else {
-      this.match = JSON.parse(JSON.stringify(PRESET_MATCHES.damien_cif_final));
+      this.match = createBlankMatch('Damien Spartans', 'Opponent');
     }
     this.shotClock = this.match.shotClockSec || 30;
     this.rebuildActiveLineup();
@@ -46,11 +46,22 @@ class MatchState {
   rebuildActiveLineup() {
     if (!this.match) return;
     this.activeLineups.home = new Set(
-      this.match.homeTeam.roster.filter(p => p.isStarter).map(p => p.cap)
+      (this.match.homeTeam.roster || []).filter(p => p.isStarter).map(p => p.cap)
     );
     this.activeLineups.away = new Set(
-      this.match.awayTeam.roster.filter(p => p.isStarter).map(p => p.cap)
+      (this.match.awayTeam.roster || []).filter(p => p.isStarter).map(p => p.cap)
     );
+  }
+
+  resetToBlank(homeName = 'Damien Spartans', awayName = 'Opponent') {
+    this.pauseClock();
+    this.match = createBlankMatch(homeName, awayName);
+    this.shotClock = 30;
+    this.activeExclusions = [];
+    this.undoStack = [];
+    this.redoStack = [];
+    this.rebuildActiveLineup();
+    this.notify('match_created');
   }
 
   subscribe(listener) {

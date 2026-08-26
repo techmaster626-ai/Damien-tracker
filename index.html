@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="styles/scoreboard.css">
   <link rel="stylesheet" href="styles/pool-map.css">
   <link rel="stylesheet" href="styles/boxscore.css">
+  <link rel="stylesheet" href="styles/analytics.css">
   <link rel="stylesheet" href="styles/overlay.css">
 </head>
 <body>
@@ -28,6 +29,20 @@
 
   <!-- Main Application Workspace -->
   <main class="app-container">
+
+    <!-- Getting Started Onboarding Banner (Shown when starting fresh) -->
+    <div id="getting-started-banner" class="getting-started-card" style="display: none;">
+      <div class="gs-left">
+        <span class="gs-badge">👋 GETTING STARTED</span>
+        <h3>Welcome to Damien Spartans Stats Tracker</h3>
+        <p>Start by adding or importing your team roster from <strong>Google Sheets / CSV</strong>, or load the pre-configured <strong>Interactive Demo Match</strong> to explore.</p>
+      </div>
+      <div class="gs-actions">
+        <button class="gs-btn primary" id="btn-gs-load-demo">▶️ Load Demo Match</button>
+        <button class="gs-btn secondary" id="btn-gs-import-sheets">📊 Import from Google Sheets</button>
+        <button class="gs-btn close" id="btn-gs-dismiss" title="Dismiss">✕</button>
+      </div>
+    </div>
 
     <!-- VIEW 1: LIVE SCORING & POOL COMMAND CENTER -->
     <section class="app-view-section active" id="view-scoring">
@@ -42,7 +57,7 @@
               <span class="score-number" id="hud-home-score">0</span>
             </div>
             <div class="team-meta-info">
-              <span class="team-name-lg" id="hud-home-name">Home White</span>
+              <span class="team-name-lg" id="hud-home-name">Damien Spartans</span>
               <div class="team-badges-row">
                 <span class="possession-badge active" id="poss-indicator-home">POSSESSION ◀</span>
                 <span class="power-play-pill" id="power-play-badge-home">6 ON 5 MAN UP</span>
@@ -55,7 +70,7 @@
           <div class="scoreboard-center-clocks">
             <div class="game-clock-column">
               <span class="period-indicator-badge" id="hud-period-badge">Quarter 1</span>
-              <div class="game-clock-display stopped" id="hud-game-clock" title="Click to edit time">8:00</div>
+              <div class="game-clock-display stopped" id="hud-game-clock" title="Click to edit time">7:00</div>
             </div>
 
             <!-- 30-Second Shot Clock Circular Ring -->
@@ -77,7 +92,7 @@
               <span class="score-number" id="hud-away-score">0</span>
             </div>
             <div class="team-meta-info" style="align-items: flex-end;">
-              <span class="team-name-lg" id="hud-away-name">Away Blue</span>
+              <span class="team-name-lg" id="hud-away-name">Opponent</span>
               <div class="team-badges-row">
                 <span class="team-timeouts-pill" id="hud-away-timeouts">TO: 2</span>
                 <span class="power-play-pill" id="power-play-badge-away">6 ON 5 MAN UP</span>
@@ -123,12 +138,15 @@
         <div class="roster-column-card">
           <div class="roster-team-header">
             <div class="team-header-title">
-              <div class="team-cap-badge-icon" style="background-color: #ffffff; border: 1px solid #94a3b8;"></div>
+              <div class="team-cap-badge-icon" style="background-color: #0e3d2f; border: 1px solid #ffb81c;"></div>
               <div class="team-title-text">
-                <h3>Home Roster</h3>
+                <h3 id="roster-header-home-name">Home Roster</h3>
               </div>
             </div>
-            <span class="team-timeouts-pill">Active 7</span>
+            <div class="roster-header-actions">
+              <button class="roster-act-btn" id="btn-import-home-roster" title="Import from Google Sheets or CSV">📥 Import</button>
+              <button class="roster-act-btn" id="btn-add-home-player" title="Add Player">+ Add</button>
+            </div>
           </div>
           <div class="roster-selector-grid" id="home-roster-selector-grid"></div>
         </div>
@@ -219,12 +237,15 @@
         <div class="roster-column-card away-roster-column">
           <div class="roster-team-header">
             <div class="team-header-title">
-              <div class="team-cap-badge-icon" style="background-color: #1b4d3e; border: 1px solid #94a3b8;"></div>
+              <div class="team-cap-badge-icon" style="background-color: #1e3a8a; border: 1px solid #ffffff;"></div>
               <div class="team-title-text">
-                <h3>Away Roster</h3>
+                <h3 id="roster-header-away-name">Away Roster</h3>
               </div>
             </div>
-            <span class="team-timeouts-pill">Active 7</span>
+            <div class="roster-header-actions">
+              <button class="roster-act-btn" id="btn-import-away-roster" title="Import from Google Sheets or CSV">📥 Import</button>
+              <button class="roster-act-btn" id="btn-add-away-player" title="Add Player">+ Add</button>
+            </div>
           </div>
           <div class="roster-selector-grid" id="away-roster-selector-grid"></div>
         </div>
@@ -232,28 +253,152 @@
       </div>
     </section>
 
-    <!-- VIEW 2: OFFICIAL BOX SCORE & ANALYTICS -->
+    <!-- VIEW 2: PLAYER ANALYTICS DASHBOARD -->
+    <section class="app-view-section" id="view-analytics">
+      <div id="analytics-view-mount"></div>
+    </section>
+
+    <!-- VIEW 3: OFFICIAL BOX SCORE & ANALYTICS -->
     <section class="app-view-section" id="view-boxscore">
       <div id="boxscore-view-mount"></div>
     </section>
 
-    <!-- VIEW 3: PLAY-BY-PLAY TIMELINE -->
+    <!-- VIEW 4: PLAY-BY-PLAY TIMELINE -->
     <section class="app-view-section" id="view-pbp">
       <div id="pbp-view-mount"></div>
     </section>
 
-    <!-- VIEW 4: BROADCAST SCOREBUG & STREAM MODE -->
+    <!-- VIEW 5: BROADCAST SCOREBUG & STREAM MODE -->
     <section class="app-view-section" id="view-broadcast">
-      <!-- Broadcast Window / Fullscreen HUD Mount -->
       <div class="broadcast-overlay-container" id="broadcast-overlay-mount"></div>
     </section>
 
-    <!-- VIEW 5: EXPORT & INTEGRATIONS -->
+    <!-- VIEW 6: EXPORT & INTEGRATIONS -->
     <section class="app-view-section" id="view-export"></section>
 
   </main>
 
   <!-- MODALS -->
+
+  <!-- Modal: Google Sheets & CSV Roster Importer -->
+  <div class="modal-overlay" id="modal-roster-importer">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3>📊 Import Roster (Google Sheets / CSV)</h3>
+        <button class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-form-group">
+          <label>Target Team</label>
+          <select id="import-target-team-select" class="modal-select">
+            <option value="home">Damien Spartans (Home)</option>
+            <option value="away">Opponent Team (Away)</option>
+          </select>
+        </div>
+
+        <div class="cloud-tabs-nav mt-2">
+          <button class="cloud-tab-btn active" data-imptab="sheets">Google Sheets URL</button>
+          <button class="cloud-tab-btn" data-imptab="paste">Copy & Paste Table / CSV</button>
+          <button class="cloud-tab-btn" data-imptab="template">Sample Template</button>
+        </div>
+
+        <!-- Google Sheets Tab -->
+        <div class="cloud-tab-content active" id="imptab-sheets">
+          <div class="modal-form-group mt-2">
+            <label>Google Sheets Share URL or Spreadsheet ID</label>
+            <input type="text" id="input-sheets-url" class="modal-input" placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit">
+            <span class="text-muted" style="font-size: 11px;">Make sure the Google Sheet is shared as <strong>"Anyone with the link can view"</strong>.</span>
+          </div>
+          <button class="modal-submit-btn mt-2" id="btn-fetch-google-sheet">⚡ Pull from Google Sheets</button>
+        </div>
+
+        <!-- Paste CSV / TSV Tab -->
+        <div class="cloud-tab-content" id="imptab-paste">
+          <div class="modal-form-group mt-2">
+            <label>Paste CSV or Tab-Delimited Data (from Excel/Sheets)</label>
+            <textarea id="textarea-paste-csv" class="modal-input" rows="6" placeholder="Cap,Player Name,Position,Starter&#10;1,Chase Peterson,GK,Yes&#10;2,Brayden Taylor,Driver,Yes"></textarea>
+          </div>
+          <button class="modal-submit-btn mt-2" id="btn-parse-pasted-csv">🔍 Parse & Preview Table</button>
+        </div>
+
+        <!-- Template Tab -->
+        <div class="cloud-tab-content" id="imptab-template">
+          <p class="text-muted" style="font-size: 12px;">Copy this template directly into your Google Sheets:</p>
+          <pre id="sample-csv-preview" style="background:#000; padding:10px; border-radius:4px; font-family:var(--font-mono); font-size:11px; color:#86efac;"></pre>
+        </div>
+
+        <!-- Live Preview of Parsed Roster -->
+        <div id="importer-preview-box" style="display: none; margin-top: 14px;">
+          <h4 style="font-size: 13px; color: var(--spartan-gold); margin-bottom: 6px;">Parsed Roster Preview (<span id="parsed-count">0</span> players found)</h4>
+          <div class="parsed-roster-table-wrap">
+            <table class="official-boxscore-table" id="parsed-preview-table">
+              <thead>
+                <tr>
+                  <th>Cap</th>
+                  <th>Player Name</th>
+                  <th>Position</th>
+                  <th>Role</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn">Cancel</button>
+        <button type="button" class="modal-submit-btn" id="btn-confirm-apply-roster" disabled>✅ Apply to Roster</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Single Player -->
+  <div class="modal-overlay" id="modal-add-player">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>➕ Add Player to Roster</h3>
+        <button class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-form-group">
+          <label>Target Team</label>
+          <select id="add-player-team-select" class="modal-select">
+            <option value="home">Damien Spartans</option>
+            <option value="away">Opponent</option>
+          </select>
+        </div>
+        <div style="display: grid; grid-template-columns: 100px 1fr; gap: 10px;">
+          <div class="modal-form-group">
+            <label>Cap #</label>
+            <input type="number" id="add-player-cap" class="modal-input" min="1" max="99" value="2">
+          </div>
+          <div class="modal-form-group">
+            <label>Player Name</label>
+            <input type="text" id="add-player-name" class="modal-input" placeholder="e.g. John Doe">
+          </div>
+        </div>
+        <div class="modal-form-group">
+          <label>Position</label>
+          <select id="add-player-pos" class="modal-select">
+            <option value="Attacker">Attacker</option>
+            <option value="Driver">Driver</option>
+            <option value="Center">Center (2m Hole Set)</option>
+            <option value="Defender">Center Defender</option>
+            <option value="GK">Goalkeeper (GK)</option>
+            <option value="Utility">Utility</option>
+          </select>
+        </div>
+        <div class="modal-form-group" style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
+          <input type="checkbox" id="add-player-starter" checked style="width: 18px; height: 18px;">
+          <label for="add-player-starter" style="text-transform: none; font-size: 13px;">Active Starter (In Pool)</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn">Cancel</button>
+        <button type="button" class="modal-submit-btn" id="btn-submit-add-player">Add Player</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal: Firebase Cloud Sync & Live Room -->
   <div class="modal-overlay" id="modal-cloud-sync">
@@ -302,7 +447,7 @@
         <div class="cloud-tab-content" id="cloudtab-join">
           <div class="modal-form-group">
             <label>Enter Live Room ID / Match ID</label>
-            <input type="text" id="input-join-room-id" class="modal-input" placeholder="e.g. match_olympic_final_2024">
+            <input type="text" id="input-join-room-id" class="modal-input" placeholder="e.g. match_damien_baseline_final">
           </div>
           <button class="modal-submit-btn mt-3" id="btn-join-live-room">🔗 Connect to Live Match</button>
         </div>
@@ -413,7 +558,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div class="modal-form-group">
             <label>Minutes</label>
-            <input type="number" id="input-clock-min" class="modal-input" min="0" max="20" value="8">
+            <input type="number" id="input-clock-min" class="modal-input" min="0" max="20" value="7">
           </div>
           <div class="modal-form-group">
             <label>Seconds</label>
@@ -438,17 +583,17 @@
       <div class="modal-body">
         <div class="modal-form-group">
           <label>Home Team Name</label>
-          <input type="text" id="input-new-home-name" class="modal-input" value="Home White">
+          <input type="text" id="input-new-home-name" class="modal-input" value="Damien Spartans">
         </div>
         <div class="modal-form-group">
           <label>Away Team Name</label>
-          <input type="text" id="input-new-away-name" class="modal-input" value="Away Blue">
+          <input type="text" id="input-new-away-name" class="modal-input" value="Opponent">
         </div>
         <div class="modal-form-group">
           <label>Quarter Length</label>
           <select id="input-new-quarter-min" class="modal-select">
-            <option value="8">8 Minutes (FINA / NCAA / College)</option>
             <option value="7">7 Minutes (High School Varsity CIF)</option>
+            <option value="8">8 Minutes (FINA / NCAA / College)</option>
             <option value="6">6 Minutes (High School JV / Masters)</option>
             <option value="5">5 Minutes (Youth Age Group)</option>
           </select>

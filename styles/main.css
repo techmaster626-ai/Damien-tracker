@@ -569,6 +569,151 @@ body {
   color: var(--accent-cyan);
 }
 
+/* Getting Started Onboarding Banner */
+.getting-started-card {
+  background: linear-gradient(135deg, rgba(14, 61, 47, 0.95), rgba(7, 28, 20, 0.98));
+  border: 2px solid var(--spartan-gold);
+  border-radius: var(--radius-md);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  flex-wrap: wrap;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gs-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--spartan-gold);
+  letter-spacing: 1px;
+}
+
+.gs-left h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 2px 0 4px 0;
+}
+
+.gs-left p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 650px;
+}
+
+.gs-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gs-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.gs-btn.primary {
+  background: var(--spartan-gold);
+  color: #051610;
+}
+.gs-btn.primary:hover {
+  background: #ffe066;
+  box-shadow: 0 0 16px rgba(255, 184, 28, 0.5);
+}
+
+.gs-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.gs-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.gs-btn.close {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  padding: 4px 8px;
+}
+.gs-btn.close:hover {
+  color: #ffffff;
+}
+
+/* Empty Roster Placeholder */
+.roster-empty-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-sm);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.empty-roster-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.empty-act-btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.empty-act-btn.import {
+  background: rgba(255, 184, 28, 0.2);
+  border: 1px solid var(--spartan-gold);
+  color: var(--spartan-gold);
+}
+.empty-act-btn.import:hover {
+  background: var(--spartan-gold);
+  color: #051610;
+}
+
+.empty-act-btn.add {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+.empty-act-btn.add:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.parsed-roster-table-wrap {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
 /* Modals */
 .modal-overlay {
   display: none;
