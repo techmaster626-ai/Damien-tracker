@@ -13,6 +13,7 @@
 
 import { state } from './state.js';
 import { sound } from './audio.js';
+import { auth } from './auth.js';
 import { PoolChartEngine } from './pool-chart.js';
 import { BoxScoreRenderer } from './boxscore.js';
 import { PlayByPlayRenderer } from './pbp.js';
@@ -66,10 +67,11 @@ class WaterPoloApp {
     this.bindCloudSyncModal();
     this.bindImporterModal();
     this.bindAddPlayerModal();
+    this.bindAuthModal();
     this.bindGettingStartedBanner();
     this.bindKeyboardHotkeys();
 
-    // Subscribe to state changes for UI refreshes
+    // Subscribe to state and auth changes for UI refreshes
     state.subscribe((eventType, detail) => {
       this.updateScoreboardHUD();
       this.updateExclusionBox();
@@ -77,6 +79,12 @@ class WaterPoloApp {
       this.checkGettingStartedBanner();
     });
 
+    auth.subscribe((user) => {
+      this.renderHeaderAndScoreboard();
+      this.applyRolePermissions();
+    });
+
+    this.applyRolePermissions();
     this.updateScoreboardHUD();
     this.updateExclusionBox();
     this.updateRosterButtons();
@@ -207,6 +215,24 @@ class WaterPoloApp {
         </div>
 
         <div class="top-actions-wrapper">
+          <!-- User Profile & Role Pill -->
+          <div class="user-auth-profile-wrap">
+            <button class="user-profile-badge-btn" id="btn-open-user-menu" title="User Profile & Role Settings">
+              <span class="user-avatar-icon">${auth.currentUser?.avatar || '👤'}</span>
+              <span>${auth.currentUser?.name || 'Sign In'}</span>
+              <span class="user-role-tag role-${auth.currentUser?.role || 'parent'}">${(auth.currentUser?.role || 'Spectator').toUpperCase()}</span>
+            </button>
+            <div class="user-dropdown-menu" id="user-dropdown-menu">
+              <div class="dropdown-user-info">
+                <span class="dropdown-user-name">${auth.currentUser?.name || 'Guest User'}</span>
+                <span class="dropdown-user-email">${auth.currentUser?.email || 'Not signed in'}</span>
+              </div>
+              <button class="dropdown-btn-item" id="btn-dropdown-switch-role">🔄 Switch Role / Profile</button>
+              <button class="dropdown-btn-item" id="btn-dropdown-auth-modal">🔐 Sign In as Another User</button>
+              <button class="dropdown-btn-item logout" id="btn-dropdown-logout">🚪 Sign Out</button>
+            </div>
+          </div>
+
           <button class="action-btn-header secondary" id="btn-open-cloud-sync" title="Firebase Cloud Sync & Live Match Sharing">
             ☁️ Cloud Sync
           </button>
@@ -215,7 +241,7 @@ class WaterPoloApp {
             <option value="getting_started_demo">Getting Started Demo (Damien vs Los Osos)</option>
           </select>
           <button class="action-btn-header secondary" id="btn-new-match-modal">+ New Match</button>
-          <button class="action-btn-header danger-btn" id="btn-reset-all" title="Wipe all data and start completely fresh">🗑️ Reset Fresh</button>
+          ${auth.isAdmin() ? '<button class="action-btn-header danger-btn" id="btn-reset-all" title="Wipe all data and start completely fresh">🗑️ Reset Fresh</button>' : ''}
           <button class="action-btn-header icon-only" id="btn-toggle-sound" title="Toggle Whistle/Buzzer Audio">
             ${sound.isMuted() ? '🔇' : '🔊'}
           </button>
@@ -263,13 +289,13 @@ class WaterPoloApp {
 
     const resetAllBtn = document.getElementById('btn-reset-all');
     if (resetAllBtn) {
-      resetAllBtn.addEventListener('click', () => {
+      resetAllBtn.onclick = () => {
         if (confirm('Are you sure you want to remove all match data and start completely fresh?')) {
           state.clearAllData('Damien Spartans', 'Opponent');
           this.switchTab('scoring');
           this.showToast('🧹 All data cleared! Starting completely fresh.');
         }
-      });
+      };
     }
 
     const cloudBtn = document.getElementById('btn-open-cloud-sync');
@@ -277,6 +303,125 @@ class WaterPoloApp {
       cloudBtn.addEventListener('click', () => {
         this.openCloudSyncModal();
       });
+    }
+  }
+
+  applyRolePermissions() {
+    const role = auth.currentUser?.role || 'parent';
+    const isReadOnly = !auth.can('canScore');
+
+    // Add / remove read-only CSS class on body
+    document.body.classList.toggle('role-readonly', isReadOnly);
+
+    // If read-only and currently on scoring tab, suggest spectator views
+    if (isReadOnly && (this.activeTab === 'scoring' || this.activeTab === 'sheet')) {
+      this.showToast(`Logged in as ${role.toUpperCase()} (Read-only spectator mode)`);
+    }
+  }
+
+  bindAuthModal() {
+    const modal = document.getElementById('modal-user-auth');
+    if (!modal) return;
+
+    // Open User menu dropdown
+    const profileBtn = document.getElementById('btn-open-user-menu');
+    const dropdown = document.getElementById('user-dropdown-menu');
+
+    if (profileBtn && dropdown) {
+      profileBtn.onclick = (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('active');
+      };
+      window.addEventListener('click', () => {
+        dropdown.classList.remove('active');
+      });
+    }
+
+    const switchRoleBtn = document.getElementById('btn-dropdown-switch-role');
+    const authModalBtn = document.getElementById('btn-dropdown-auth-modal');
+    const logoutBtn = document.getElementById('btn-dropdown-logout');
+
+    if (switchRoleBtn) {
+      switchRoleBtn.onclick = () => {
+        dropdown?.classList.remove('active');
+        modal.classList.add('active');
+      };
+    }
+
+    if (authModalBtn) {
+      authModalBtn.onclick = () => {
+        dropdown?.classList.remove('active');
+        modal.classList.add('active');
+      };
+    }
+
+    if (logoutBtn) {
+      logoutBtn.onclick = () => {
+        dropdown?.classList.remove('active');
+        auth.logout();
+        this.showToast('Signed out.');
+      };
+    }
+
+    // Modal Tabs (Login vs Register)
+    const tabBtns = modal.querySelectorAll('.cloud-tab-btn');
+    tabBtns.forEach(btn => {
+      btn.onclick = () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        modal.querySelectorAll('.cloud-tab-content').forEach(c => c.classList.remove('active'));
+        const target = modal.querySelector(`#authtab-${btn.dataset.authtab}`);
+        if (target) target.classList.add('active');
+      };
+    });
+
+    // Quick Profile Selectors
+    const quickProfileBtns = modal.querySelectorAll('.profile-select-btn');
+    quickProfileBtns.forEach(btn => {
+      btn.onclick = () => {
+        const email = btn.dataset.useremail;
+        quickProfileBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        auth.switchUser(email);
+        modal.classList.remove('active');
+        this.showToast(`Switched profile to: ${auth.currentUser.name} (${auth.currentUser.role.toUpperCase()})`);
+      };
+    });
+
+    // Sign In Button
+    const submitLogin = document.getElementById('btn-submit-auth-login');
+    if (submitLogin) {
+      submitLogin.onclick = async () => {
+        const email = document.getElementById('auth-login-email')?.value;
+        const pass = document.getElementById('auth-login-password')?.value;
+        const res = await auth.login(email, pass);
+        if (res.success) {
+          modal.classList.remove('active');
+          this.showToast(`✅ Welcome back, ${res.user.name}!`);
+        } else {
+          alert(res.error);
+        }
+      };
+    }
+
+    // Register Button
+    const submitReg = document.getElementById('btn-submit-auth-reg');
+    if (submitReg) {
+      submitReg.onclick = async () => {
+        const name = document.getElementById('auth-reg-name')?.value;
+        const email = document.getElementById('auth-reg-email')?.value;
+        const pass = document.getElementById('auth-reg-password')?.value;
+        const role = document.getElementById('auth-reg-role')?.value;
+
+        if (!name || !email || !pass) return alert('Please fill in all fields');
+        const res = await auth.register(name, email, pass, role);
+        if (res.success) {
+          modal.classList.remove('active');
+          this.showToast(`✅ Account created for ${res.user.name}!`);
+        } else {
+          alert(res.error);
+        }
+      };
     }
   }
 

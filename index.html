@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="styles/boxscore.css">
   <link rel="stylesheet" href="styles/analytics.css">
   <link rel="stylesheet" href="styles/sheet-scoring.css">
+  <link rel="stylesheet" href="styles/auth.css">
   <link rel="stylesheet" href="styles/overlay.css">
 </head>
 <body>
@@ -608,6 +609,113 @@
       <div class="modal-footer">
         <button type="button" class="modal-cancel-btn">Cancel</button>
         <button type="button" class="modal-submit-btn" id="btn-submit-new-match">Create Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: User Authentication & Role Manager -->
+  <div class="modal-overlay" id="modal-user-auth">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🔐 User Sign In & Roles</h3>
+        <button class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Quick Role Switcher Banner -->
+        <div class="modal-form-group">
+          <label>Quick Profile Switcher</label>
+          <div class="quick-profiles-grid">
+            <button class="profile-select-btn active" data-useremail="vicario.d83@gmail.com">
+              <span class="prof-icon">🛡️</span>
+              <div class="prof-details">
+                <span class="prof-title">Coach Vicario</span>
+                <span class="prof-role">SUPER ADMIN</span>
+              </div>
+            </button>
+
+            <button class="profile-select-btn" data-useremail="coach@damienhs.edu">
+              <span class="prof-icon">📋</span>
+              <div class="prof-details">
+                <span class="prof-title">Assistant Coach</span>
+                <span class="prof-role">COACH</span>
+              </div>
+            </button>
+
+            <button class="profile-select-btn" data-useremail="player@damienhs.edu">
+              <span class="prof-icon">🤽‍♂️</span>
+              <div class="prof-details">
+                <span class="prof-title">David Vicario #12</span>
+                <span class="prof-role">PLAYER</span>
+              </div>
+            </button>
+
+            <button class="profile-select-btn" data-useremail="parent@damienhs.edu">
+              <span class="prof-icon">👨‍👩‍👧</span>
+              <div class="prof-details">
+                <span class="prof-title">Spartan Parent</span>
+                <span class="prof-role">PARENT</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="cloud-tabs-nav mt-2">
+          <button class="cloud-tab-btn active" data-authtab="login">Sign In with Credentials</button>
+          <button class="cloud-tab-btn" data-authtab="register">Create New Account</button>
+        </div>
+
+        <!-- Login Form -->
+        <div class="cloud-tab-content active" id="authtab-login">
+          <div class="modal-form-group mt-2">
+            <label>Email Address</label>
+            <input type="email" id="auth-login-email" class="modal-input" value="vicario.d83@gmail.com">
+          </div>
+          <div class="modal-form-group">
+            <label>Password</label>
+            <input type="password" id="auth-login-password" class="modal-input" value="waterpolo4life">
+          </div>
+          <button class="modal-submit-btn mt-2" id="btn-submit-auth-login">Sign In</button>
+        </div>
+
+        <!-- Register Form -->
+        <div class="cloud-tab-content" id="authtab-register">
+          <div class="modal-form-group mt-2">
+            <label>Full Name</label>
+            <input type="text" id="auth-reg-name" class="modal-input" placeholder="e.g. John Doe">
+          </div>
+          <div class="modal-form-group">
+            <label>Email Address</label>
+            <input type="email" id="auth-reg-email" class="modal-input" placeholder="name@damienhs.edu">
+          </div>
+          <div class="modal-form-group">
+            <label>Password</label>
+            <input type="password" id="auth-reg-password" class="modal-input" placeholder="Create password">
+          </div>
+          <div class="modal-form-group">
+            <label>User Role</label>
+            <select id="auth-reg-role" class="modal-select">
+              <option value="parent">Parent / Spectator (Live scoreboard & analytics)</option>
+              <option value="player">Player (Personal stats & shot maps)</option>
+              <option value="coach">Coach (Full live game scorekeeping & roster control)</option>
+              <option value="admin">Admin / Super User</option>
+            </select>
+          </div>
+          <button class="modal-submit-btn mt-2" id="btn-submit-auth-reg">Create Account</button>
+        </div>
+
+        <!-- Permissions Reference Guide -->
+        <div class="role-permissions-banner mt-2">
+          <strong>Role Permissions Overview:</strong>
+          <ul>
+            <li><strong>Admin (Super User)</strong>: Unrestricted control (Scoring, Rosters, Cloud Sync, Reset Data)</li>
+            <li><strong>Coach</strong>: Live game scoring, sheet scoring, roster updates, Google Sheets sync</li>
+            <li><strong>Player</strong>: Personal stats, shot maps, box scores (Read-only live scoring)</li>
+            <li><strong>Parent</strong>: Spectator live feed, play-by-play, stream HUD (Read-only)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn">Close</button>
       </div>
     </div>
   </div>
