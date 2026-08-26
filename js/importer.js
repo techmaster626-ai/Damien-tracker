@@ -2,12 +2,10 @@
  * Roster and Full Match Importer Engine for Damien High School Water Polo
  * Handles:
  * - Direct Google Sheets CSV integration (Single & Multiple Game Tabs)
- * - Full Offline Match & Stats Extraction from Damien Varsity WaterPolo Stats Sheet layout:
- *   - Match Metadata (Date, Location, Opponent, Quarter Scores, Timeouts)
- *   - Field Player Actions (Goals: 5M, 6on5, 2M, Action; Misses: Off Cage, Regular; Defense: Steals, TO Forced, Blocks, Exclusions, 1on1)
- *   - Goalkeepers (Goal AG, Saves, 5M Save, 1on1 Save)
- *   - Flexible cell value parsing (supports numbers: 1, 2, 3; tallies: I, II, III, X, x, ✓, /; and formulas)
- *   - Reconstructed Timeline Play-by-Play Events & Match State
+ * - Dynamic column detection across ANY Google Sheet layout (Offense, Defense, Goalkeeping)
+ * - Flexible cell tally parsing (integers, tallies: I, II, III, ///, X, ✓, 1,1)
+ * - Direct Copy-Paste TSV/CSV from Google Sheets (bypasses CORS & private link restrictions)
+ * - Direct .CSV File Upload (from Google Sheets > File > Download > CSV)
  * - Saved Offline Match Archive (Local & Firestore synced)
  */
 
@@ -33,20 +31,54 @@ export class ImporterEngine {
     localStorage.setItem('wps_archived_matches', JSON.stringify(this.archivedMatches));
   }
 
-  // 1. Fetch & Parse Public Google Sheet by URL or Spreadsheet ID
-  async fetchFromGoogleSheetUrl(urlOrId, gid = '0') {
-    let csvUrl = (urlOrId || this.defaultGoogleSheetUrl).trim();
+  // 1. Build Proper Google Sheet CSV Export URL
+  buildGoogleSheetCsvUrl(urlOrId, gid = '0') {
+    let input = (urlOrId || this.defaultGoogleSheetUrl).trim();
+    if (!input) input = this.defaultGoogleSheetUrl;
 
-    const gidMatch = csvUrl.match(/gid=([0-9]+)/);
-    const actualGid = gidMatch ? gidMatch[1] : gid;
+    // Check if GID is in URL (#gid=123 or ?gid=123)
+    const gidMatch = input.match(/gid=([0-9]+)/i);
+    const actualGid = gidMatch ? gidMatch[1] : (gid || '0');
 
-    const match = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    // Handle "Published to Web" links: /pub?output=csv or /pubhtml
+    if (input.includes('/pub') || input.includes('/pubhtml')) {
+      return input.replace(/\/pubhtml.*$/, '/pub?output=csv&gid=' + actualGid);
+    }
+
+    // Handle Standard Google Docs URLs: /d/SPREADSHEET_ID/...
+    const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
     if (match && match[1]) {
       const sheetId = match[1];
-      csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${actualGid}`;
-    } else if (!csvUrl.startsWith('http')) {
-      csvUrl = `https://docs.google.com/spreadsheets/d/${csvUrl}/gviz/tq?tqx=out:csv&gid=${actualGid}`;
+      return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${actualGid}`;
     }
+
+    // If plain Spreadsheet ID provided
+    if (!input.startsWith('http')) {
+      return `https://docs.google.com/spreadsheets/d/${input}/gviz/tq?tqx=out:csv&gid=${actualGid}`;
+    }
+
+    return input;
+  }
+
+  // 2. Fetch Full Game & Stats from Google Sheet URL
+  async fetchFullGameFromGoogleSheet(urlOrId, gid = '0', opponentName = 'Opponent') {
+    const csvUrl = this.buildGoogleSheetCsvUrl(urlOrId, gid);
+
+    try {
+      const response = await fetch(csvUrl);
+      if (!response.ok) {
+        throw new Error(`Google Sheets responded with HTTP status ${response.status}. Please make sure the sheet is shared as "Anyone with the link can view".`);
+      }
+      const csvText = await response.text();
+      return this.parseFullGameCSV(csvText, opponentName);
+    } catch (err) {
+      throw new Error(`Google Sheet import error: ${err.message}\n\nTIP: If the sheet is private, you can simply copy and paste your spreadsheet cells into the "📋 Paste Table" tab or upload the downloaded .csv file!`);
+    }
+  }
+
+  // 3. Fetch Roster Only from Google Sheet
+  async fetchFromGoogleSheetUrl(urlOrId, gid = '0') {
+    const csvUrl = this.buildGoogleSheetCsvUrl(urlOrId, gid);
 
     try {
       const response = await fetch(csvUrl);
@@ -56,33 +88,7 @@ export class ImporterEngine {
       const csvText = await response.text();
       return this.parseRosterCSV(csvText);
     } catch (err) {
-      throw new Error(`Failed to pull Google Sheet: ${err.message}`);
-    }
-  }
-
-  // 2. Fetch Full Game & Stats from Google Sheet
-  async fetchFullGameFromGoogleSheet(urlOrId, gid = '0', opponentName = 'Opponent') {
-    let csvUrl = (urlOrId || this.defaultGoogleSheetUrl).trim();
-    const gidMatch = csvUrl.match(/gid=([0-9]+)/);
-    const actualGid = gidMatch ? gidMatch[1] : gid;
-
-    const match = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-    if (match && match[1]) {
-      const sheetId = match[1];
-      csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${actualGid}`;
-    } else if (!csvUrl.startsWith('http')) {
-      csvUrl = `https://docs.google.com/spreadsheets/d/${csvUrl}/gviz/tq?tqx=out:csv&gid=${actualGid}`;
-    }
-
-    try {
-      const response = await fetch(csvUrl);
-      if (!response.ok) {
-        throw new Error(`Google Sheets responded with status ${response.status}.`);
-      }
-      const csvText = await response.text();
-      return this.parseFullGameCSV(csvText, opponentName);
-    } catch (err) {
-      throw new Error(`Failed to pull game stats from Google Sheet: ${err.message}`);
+      throw new Error(`Failed to pull Google Sheet roster: ${err.message}`);
     }
   }
 
@@ -115,7 +121,63 @@ export class ImporterEngine {
     return 0;
   }
 
-  // 3. Parse Full Damien Varsity Game Stats Sheet CSV
+  // 4. Dynamic Column Mapper for Any Google Sheet
+  detectColumnIndices(rows) {
+    // Default indices based on Damien official sheet
+    const colMap = {
+      cap: 0,
+      name: 1,
+      offCage: 2,
+      miss: 3,
+      goals5m: 4,
+      goals6on5: 5,
+      goals2m: 6,
+      goalsAct: 7,
+      turnovers: 8,
+      badPass: 9,
+      steals: 10,
+      toForced: 11,
+      excl5m: 14,
+      exclReg: 15,
+      blocks: 16,
+      scoredOn: 17,
+      missFb: 18,
+      oneOnOne: 19,
+      saves: 3,
+      goalsAg: 2
+    };
+
+    // Scan the first 7 header rows to dynamically detect any custom column arrangement
+    for (let r = 0; r < Math.min(7, rows.length); r++) {
+      const row = rows[r];
+      if (!row) continue;
+
+      row.forEach((cell, idx) => {
+        const c = String(cell || '').toLowerCase().trim();
+        if (!c) return;
+
+        if (c === 'cap' || c === 'cap #' || c === '#') colMap.cap = idx;
+        if (c === 'name' || c === 'player name' || c === 'player') colMap.name = idx;
+        if (c.includes('off cage') || c.includes('off-cage')) colMap.offCage = idx;
+        if (c === 'miss' || c.includes('missed')) colMap.miss = idx;
+        if (c.includes('5m') && (c.includes('goal') || r <= 5)) colMap.goals5m = idx;
+        if (c.includes('6on5') || c.includes('6 on 5') || c.includes('man up')) colMap.goals6on5 = idx;
+        if (c.includes('2m') || c.includes('center') || c.includes('hole')) colMap.goals2m = idx;
+        if (c.includes('action') || c.includes('act') || c.includes('perimeter')) colMap.goalsAct = idx;
+        if (c === 'to' || c.includes('turnover')) colMap.turnovers = idx;
+        if (c.includes('bad pass')) colMap.badPass = idx;
+        if (c === 'steal' || c.includes('steals') || c === 'stl') colMap.steals = idx;
+        if (c.includes('to forced') || c.includes('forced')) colMap.toForced = idx;
+        if (c.includes('reg') && (c.includes('excl') || r <= 5)) colMap.exclReg = idx;
+        if (c.includes('fb') || c.includes('block') || c.includes('field block')) colMap.blocks = idx;
+        if (c.includes('1on1') || c.includes('1-on-1')) colMap.oneOnOne = idx;
+      });
+    }
+
+    return colMap;
+  }
+
+  // 5. Parse Full Damien Varsity Game Stats Sheet CSV
   parseFullGameCSV(rawText, fallbackOpponent = 'Opponent') {
     const rows = this.parseCSVGrid(rawText);
     if (rows.length === 0) throw new Error('Empty spreadsheet data received.');
@@ -139,13 +201,14 @@ export class ImporterEngine {
       if (offMatch) official1 = offMatch[1];
     });
 
+    const colMap = this.detectColumnIndices(rows);
     const homePlayers = [];
     const events = [];
     const playerStatsSummary = [];
     let homeTotalGoals = 0;
     let awayTotalGoals = 0;
 
-    // Parse Field Players (Rows with Cap + Name)
+    // Parse Field Players
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       if (!r || r.length < 2) continue;
@@ -153,6 +216,7 @@ export class ImporterEngine {
       let capVal = null;
       let nameVal = null;
 
+      // Check first 3 columns for numeric cap and player name
       for (let c = 0; c < Math.min(3, r.length); c++) {
         const cell = r[c]?.trim();
         if (/^\d{1,2}$/.test(cell)) {
@@ -162,6 +226,7 @@ export class ImporterEngine {
         }
       }
 
+      // Check for GK rows like "Joseph Summers" without cap number
       if (!capVal && r[1] && (r[1].toLowerCase().includes('summers') || r[1].toLowerCase().includes('joseph'))) {
         capVal = 13;
         nameVal = r[1].trim();
@@ -189,22 +254,21 @@ export class ImporterEngine {
         };
         homePlayers.push(playerObj);
 
-        // Parse stats columns:
-        // Col 2: Off Cage, Col 3: Miss, Col 4: 5M Goal, Col 5: 6on5 Goal, Col 6: 2M Goal, Col 7: Act Goal
-        // Col 8: TO, Col 9: Bad Pass, Col 10: Steal, Col 11: TO Forced, Col 12: 5M Excl, Col 13: Reg Excl, Col 14: Block, Col 15: 1on1
-        const missOffCage = this.parseCellCount(r[2]);
-        const missReg = this.parseCellCount(r[3]);
-        const goals5m = this.parseCellCount(r[4]);
-        const goals6on5 = this.parseCellCount(r[5]);
-        const goals2m = this.parseCellCount(r[6]);
-        const goalsAct = this.parseCellCount(r[7]);
-        const turnovers = this.parseCellCount(r[8]) + this.parseCellCount(r[9]);
-        const steals = this.parseCellCount(r[10]) + this.parseCellCount(r[12]);
-        const toForced = this.parseCellCount(r[11]);
-        const excl5m = this.parseCellCount(r[14]);
-        const exclusions = this.parseCellCount(r[13]) + this.parseCellCount(r[15]);
-        const blocks = this.parseCellCount(r[16]) || this.parseCellCount(r[14]);
-        const oneOnOne = this.parseCellCount(r[18]) || this.parseCellCount(r[19]);
+        // Parse individual player stats using dynamic column mapping
+        const missOffCage = this.parseCellCount(r[colMap.offCage]);
+        const missReg = this.parseCellCount(r[colMap.miss]);
+        const goals5m = this.parseCellCount(r[colMap.goals5m]);
+        const goals6on5 = this.parseCellCount(r[colMap.goals6on5]);
+        const goals2m = this.parseCellCount(r[colMap.goals2m]);
+        const goalsAct = this.parseCellCount(r[colMap.goalsAct]);
+        const turnovers = this.parseCellCount(r[colMap.turnovers]) + this.parseCellCount(r[colMap.badPass]);
+        const steals = this.parseCellCount(r[colMap.steals]);
+        const toForced = this.parseCellCount(r[colMap.toForced]);
+        const excl5m = this.parseCellCount(r[colMap.excl5m]);
+        const exclReg = this.parseCellCount(r[colMap.exclReg]);
+        const exclusions = excl5m + exclReg;
+        const blocks = this.parseCellCount(r[colMap.blocks]);
+        const oneOnOne = this.parseCellCount(r[colMap.oneOnOne]);
 
         const totalPlayerGoals = goals5m + goals6on5 + goals2m + goalsAct;
 
@@ -219,7 +283,7 @@ export class ImporterEngine {
           exclusions
         });
 
-        // Generate synthetic play-by-play events from parsed stats
+        // Generate synthetic timeline events
         const addEvents = (count, type, shotType, isGoal, desc) => {
           for (let k = 0; k < count; k++) {
             const q = Math.min(4, Math.floor((events.length / 6)) + 1);
@@ -332,7 +396,7 @@ export class ImporterEngine {
     return matchObj;
   }
 
-  // 4. Parse CSV text into a 2D Array
+  // 6. Parse CSV text into a 2D Array
   parseCSVGrid(rawText) {
     if (!rawText || !rawText.trim()) return [];
     const lines = rawText.trim().split(/\r?\n/);
@@ -356,7 +420,7 @@ export class ImporterEngine {
     }).filter(r => r.length > 0 && r.some(c => c.trim() !== ''));
   }
 
-  // 5. Universal CSV / TSV Roster Parser
+  // 7. Universal CSV / TSV Roster Parser
   parseRosterCSV(rawText) {
     const rows = this.parseCSVGrid(rawText);
     if (rows.length === 0) return [];
@@ -414,7 +478,7 @@ export class ImporterEngine {
     return roster;
   }
 
-  // 6. Apply Imported Match to Active Session
+  // 8. Apply Imported Match to Active Session
   loadMatchIntoState(matchObj) {
     if (!matchObj) return false;
     state.match = matchObj;
@@ -423,7 +487,7 @@ export class ImporterEngine {
     return true;
   }
 
-  // 7. Save Imported Match to Archive
+  // 9. Save Imported Match to Archive
   archiveMatch(matchObj) {
     if (!matchObj) return;
     const existingIdx = this.archivedMatches.findIndex(m => m.id === matchObj.id);
@@ -435,7 +499,7 @@ export class ImporterEngine {
     this.saveArchivedMatches();
   }
 
-  // 8. Apply Imported Roster to Active Team
+  // 10. Apply Imported Roster to Active Team
   applyRosterToTeam(teamKey, roster) {
     if (!state.match || !roster || roster.length === 0) return false;
     const team = teamKey === 'home' ? state.match.homeTeam : state.match.awayTeam;
@@ -445,7 +509,7 @@ export class ImporterEngine {
     return true;
   }
 
-  // 9. Generate Populated Sample Stats for Testing Google Sheets Layout
+  // 11. Generate Populated Sample Stats for Testing
   generateSampleDamienStatsMatch(opponentName = 'Los Osos Grizzlies') {
     const players = [...DAMIEN_VARSITY_ROSTER];
     const events = [];
@@ -529,7 +593,20 @@ export class ImporterEngine {
           { cap: 5, name: 'Opponent Player 5', pos: 'Defender', isStarter: true, isGk: false }
         ]
       },
-      events
+      events,
+      playerStatsSummary: statsPlan.map(p => {
+        const pl = players.find(x => x.cap === p.cap);
+        return {
+          cap: p.cap,
+          name: pl ? pl.name : `Player #${p.cap}`,
+          goals: p.goals,
+          misses: 1,
+          steals: p.steals,
+          blocks: p.blocks,
+          turnovers: p.turnovers,
+          exclusions: p.excl
+        };
+      })
     };
 
     return matchObj;

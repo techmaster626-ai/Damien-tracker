@@ -328,7 +328,13 @@
             </div>
           </div>
 
-          <button class="modal-submit-btn mt-2" id="btn-fetch-google-game">⚡ Pull Game from Google Sheets</button>
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="modal-submit-btn" id="btn-fetch-google-game" style="flex: 1;">⚡ Pull Game from Google Sheets</button>
+            <label class="modal-submit-btn secondary-btn" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 8px 12px;">
+              📁 Upload CSV File
+              <input type="file" id="input-game-file-upload" accept=".csv, .tsv, .txt" style="display: none;">
+            </label>
+          </div>
 
           <!-- Parsed Game Preview Card -->
           <div id="parsed-game-preview-card" class="mt-3" style="display: none; background: rgba(0,0,0,0.5); border: 1px solid var(--spartan-gold); border-radius: 8px; padding: 14px;">
@@ -394,13 +400,16 @@
           </div>
         </div>
 
-        <!-- Tab 4: Paste CSV / TSV Table -->
+        <!-- Tab 4: Paste Full Stats Table (Ctrl+V) -->
         <div class="cloud-tab-content" id="imptab-paste">
           <div class="modal-form-group mt-2">
-            <label>Paste CSV or Tab-Delimited Data (from Excel/Sheets)</label>
-            <textarea id="textarea-paste-csv" class="modal-input" rows="6" placeholder="Cap,Player Name,Position,Starter&#10;1,Brennan Dallas,GK,Yes&#10;2,Diego Negrete,Driver,Yes"></textarea>
+            <label>Paste Any Google Sheet Data (Roster or Full Stats Grid)</label>
+            <textarea id="textarea-paste-csv" class="modal-input" rows="8" placeholder="Select cells in Google Sheets, copy (Ctrl+C), and paste here (Ctrl+V)..."></textarea>
           </div>
-          <button class="modal-submit-btn mt-2" id="btn-parse-pasted-csv">🔍 Parse & Preview Table</button>
+          <div style="display: flex; gap: 8px;">
+            <button class="modal-submit-btn" id="btn-parse-pasted-game">🎮 Parse as Full Game & Stats</button>
+            <button class="modal-submit-btn secondary-btn" id="btn-parse-pasted-csv">📋 Parse Roster Only</button>
+          </div>
         </div>
 
         <!-- Live Preview of Parsed Roster -->

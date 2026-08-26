@@ -622,8 +622,24 @@ class WaterPoloApp {
       };
     });
 
+    // Auto-detect GID when URL is pasted
+    const gameUrlInput = document.getElementById('input-game-sheets-url');
+    const gameGidInput = document.getElementById('input-game-gid');
+    if (gameUrlInput && gameGidInput) {
+      const extractGid = () => {
+        const val = gameUrlInput.value || '';
+        const m = val.match(/gid=([0-9]+)/i);
+        if (m && m[1]) {
+          gameGidInput.value = m[1];
+        }
+      };
+      gameUrlInput.addEventListener('input', extractGid);
+      gameUrlInput.addEventListener('paste', () => setTimeout(extractGid, 50));
+    }
+
     // 1. Pull Full Game from Google Sheets
     const fetchGameBtn = document.getElementById('btn-fetch-google-game');
+    const gameFileUpload = document.getElementById('input-game-file-upload');
     const gamePreviewCard = document.getElementById('parsed-game-preview-card');
     const gameTitleEl = document.getElementById('parsed-game-title');
     const gameScoreBadge = document.getElementById('parsed-game-score-badge');
@@ -679,6 +695,35 @@ class WaterPoloApp {
           fetchGameBtn.textContent = '⚡ Pull Game from Google Sheets';
           fetchGameBtn.disabled = false;
         }
+      };
+    }
+
+    // Direct CSV File Upload Handler
+    if (gameFileUpload) {
+      gameFileUpload.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const csvText = evt.target.result;
+            const opponent = document.getElementById('input-game-opponent-name')?.value || 'Opponent';
+            parsedMatch = importer.parseFullGameCSV(csvText, opponent);
+            if (parsedMatch) {
+              if (gamePreviewCard) gamePreviewCard.style.display = 'block';
+              if (gameTitleEl) gameTitleEl.textContent = `${parsedMatch.homeTeam.name} vs ${parsedMatch.awayTeam.name}`;
+              if (gameScoreBadge) gameScoreBadge.textContent = `${parsedMatch.homeTeam.score} - ${parsedMatch.awayTeam.score}`;
+              if (gameMetaEl) {
+                gameMetaEl.textContent = `File: ${file.name} • Events: ${parsedMatch.events.length} goals/actions • Players: ${parsedMatch.homeTeam.roster.length}`;
+              }
+              renderParsedGameStatsTable(parsedMatch);
+              this.showToast(`✅ Parsed game from uploaded file (${file.name})!`);
+            }
+          } catch (err) {
+            alert(`Could not parse CSV file: ${err.message}`);
+          }
+        };
+        reader.readAsText(file);
       };
     }
 
@@ -762,7 +807,36 @@ class WaterPoloApp {
       };
     }
 
-    // Parse pasted CSV text
+    // Parse pasted Full Game
+    const parsePastedGameBtn = document.getElementById('btn-parse-pasted-game');
+    if (parsePastedGameBtn) {
+      parsePastedGameBtn.onclick = () => {
+        const text = document.getElementById('textarea-paste-csv')?.value;
+        if (!text || !text.trim()) return alert('Please paste spreadsheet cells first.');
+        const opponent = document.getElementById('input-game-opponent-name')?.value || 'Opponent';
+        try {
+          parsedMatch = importer.parseFullGameCSV(text, opponent);
+          if (parsedMatch) {
+            if (gamePreviewCard) gamePreviewCard.style.display = 'block';
+            if (gameTitleEl) gameTitleEl.textContent = `${parsedMatch.homeTeam.name} vs ${parsedMatch.awayTeam.name}`;
+            if (gameScoreBadge) gameScoreBadge.textContent = `${parsedMatch.homeTeam.score} - ${parsedMatch.awayTeam.score}`;
+            if (gameMetaEl) {
+              gameMetaEl.textContent = `Pasted Table • Events: ${parsedMatch.events.length} goals/actions • Players: ${parsedMatch.homeTeam.roster.length}`;
+            }
+            renderParsedGameStatsTable(parsedMatch);
+
+            // Switch to game tab to view preview card
+            const gameTabBtn = modal.querySelector('[data-imptab="game"]');
+            if (gameTabBtn) gameTabBtn.click();
+            this.showToast(`✅ Successfully parsed pasted game stats!`);
+          }
+        } catch (err) {
+          alert(`Error parsing pasted data: ${err.message}`);
+        }
+      };
+    }
+
+    // Parse pasted CSV text as Roster Only
     const parsePastedBtn = document.getElementById('btn-parse-pasted-csv');
     if (parsePastedBtn) {
       parsePastedBtn.onclick = () => {
