@@ -290,51 +290,100 @@
 
   <!-- MODALS -->
 
-  <!-- Modal: Google Sheets & CSV Roster Importer -->
+  <!-- Modal: Google Sheets & Match Importer -->
   <div class="modal-overlay" id="modal-roster-importer">
     <div class="modal-card modal-lg">
       <div class="modal-header">
-        <h3>📊 Import Roster (Google Sheets / CSV)</h3>
+        <h3>📊 Google Sheets Importer & Match Archive</h3>
         <button class="modal-close-btn">✕</button>
       </div>
       <div class="modal-body">
-        <div class="modal-form-group">
-          <label>Target Team</label>
-          <select id="import-target-team-select" class="modal-select">
-            <option value="home">Damien Spartans (Home)</option>
-            <option value="away">Opponent Team (Away)</option>
-          </select>
+        
+        <div class="cloud-tabs-nav">
+          <button class="cloud-tab-btn active" data-imptab="game">📥 Pull Offline Game</button>
+          <button class="cloud-tab-btn" data-imptab="sheets">📋 Pull Roster Only</button>
+          <button class="cloud-tab-btn" data-imptab="archive">📚 Match Archive (<span id="archive-count-badge">0</span>)</button>
+          <button class="cloud-tab-btn" data-imptab="paste">Copy & Paste Table</button>
         </div>
 
-        <div class="cloud-tabs-nav mt-2">
-          <button class="cloud-tab-btn active" data-imptab="sheets">Google Sheets URL</button>
-          <button class="cloud-tab-btn" data-imptab="paste">Copy & Paste Table / CSV</button>
-          <button class="cloud-tab-btn" data-imptab="template">Sample Template</button>
-        </div>
-
-        <!-- Google Sheets Tab -->
-        <div class="cloud-tab-content active" id="imptab-sheets">
-          <div class="modal-form-group mt-2">
-            <label>Google Sheets Share URL or Spreadsheet ID</label>
-            <input type="text" id="input-sheets-url" class="modal-input" value="https://docs.google.com/spreadsheets/d/1TFs_XI1Zpe2S5x8X_VXk0SlU1ZXXIMTsWMzhej8PYe4/edit?gid=0#gid=0" placeholder="https://docs.google.com/spreadsheets/d/1TFs_XI1Zpe2S5x8X_VXk0SlU1ZXXIMTsWMzhej8PYe4/edit?gid=0#gid=0">
-            <span class="text-muted" style="font-size: 11px;">Official Damien Varsity Stats Sheet linked. Ensure sheet is set to <strong>"Anyone with the link can view"</strong>.</span>
+        <!-- Tab 1: Pull Offline Game from Google Sheet -->
+        <div class="cloud-tab-content active" id="imptab-game">
+          <div class="pending-notice-box mt-2" style="background: rgba(14, 61, 47, 0.4); border-color: var(--spartan-gold); color: #fff;">
+            <span>📥 <strong>Pull Any Game Recorded on Google Sheets:</strong> Automatically extracts match scores, offensive goals, defensive stops, goalkeeping saves, and +/- ratings from your official Damien stats sheet.</span>
           </div>
-          <button class="modal-submit-btn mt-2" id="btn-fetch-google-sheet">⚡ Pull from Google Sheets</button>
+
+          <div class="modal-form-group mt-2">
+            <label>Google Sheets Share URL or ID</label>
+            <input type="text" id="input-game-sheets-url" class="modal-input" value="https://docs.google.com/spreadsheets/d/1TFs_XI1Zpe2S5x8X_VXk0SlU1ZXXIMTsWMzhej8PYe4/edit?gid=0#gid=0">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 120px; gap: 10px;">
+            <div class="modal-form-group">
+              <label>Opponent Name</label>
+              <input type="text" id="input-game-opponent-name" class="modal-input" value="Los Osos Grizzlies" placeholder="e.g. Claremont Wolfpack">
+            </div>
+            <div class="modal-form-group">
+              <label>Sheet Tab (GID)</label>
+              <input type="text" id="input-game-gid" class="modal-input" value="0" placeholder="0">
+            </div>
+          </div>
+
+          <button class="modal-submit-btn mt-2" id="btn-fetch-google-game">⚡ Pull Game from Google Sheets</button>
+
+          <!-- Parsed Game Preview Card -->
+          <div id="parsed-game-preview-card" class="mt-3" style="display: none; background: rgba(0,0,0,0.5); border: 1px solid var(--spartan-gold); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="color: var(--spartan-gold); font-size: 14px; margin: 0;">🎮 Parsed Game: <span id="parsed-game-title"></span></h4>
+              <span id="parsed-game-score-badge" style="background: var(--spartan-gold); color: #000; padding: 2px 8px; border-radius: 4px; font-weight: 800; font-family: var(--font-mono);"></span>
+            </div>
+            <p id="parsed-game-meta" class="text-muted" style="font-size: 12px; margin-bottom: 10px;"></p>
+            <div style="display: flex; gap: 8px;">
+              <button class="modal-submit-btn" id="btn-load-parsed-game">▶ Load into Tracker</button>
+              <button class="modal-submit-btn secondary-btn" id="btn-save-parsed-game-archive">💾 Save to Archives</button>
+            </div>
+          </div>
         </div>
 
-        <!-- Paste CSV / TSV Tab -->
+        <!-- Tab 2: Pull Roster Only -->
+        <div class="cloud-tab-content" id="imptab-sheets">
+          <div class="modal-form-group mt-2">
+            <label>Target Team</label>
+            <select id="import-target-team-select" class="modal-select">
+              <option value="home">Damien Spartans (Home)</option>
+              <option value="away">Opponent Team (Away)</option>
+            </select>
+          </div>
+          <div class="modal-form-group mt-2">
+            <label>Google Sheets Share URL</label>
+            <input type="text" id="input-sheets-url" class="modal-input" value="https://docs.google.com/spreadsheets/d/1TFs_XI1Zpe2S5x8X_VXk0SlU1ZXXIMTsWMzhej8PYe4/edit?gid=0#gid=0">
+          </div>
+          <button class="modal-submit-btn mt-2" id="btn-fetch-google-sheet">⚡ Pull Roster from Google Sheets</button>
+        </div>
+
+        <!-- Tab 3: Match Archive (Saved Historical Games) -->
+        <div class="cloud-tab-content" id="imptab-archive">
+          <div class="admin-users-table-wrap mt-2">
+            <table class="admin-users-table" id="archive-matches-table">
+              <thead>
+                <tr>
+                  <th>Match / Opponent</th>
+                  <th>Date</th>
+                  <th>Score</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="archive-matches-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 4: Paste CSV / TSV Table -->
         <div class="cloud-tab-content" id="imptab-paste">
           <div class="modal-form-group mt-2">
             <label>Paste CSV or Tab-Delimited Data (from Excel/Sheets)</label>
-            <textarea id="textarea-paste-csv" class="modal-input" rows="6" placeholder="Cap,Player Name,Position,Starter&#10;1,Chase Peterson,GK,Yes&#10;2,Brayden Taylor,Driver,Yes"></textarea>
+            <textarea id="textarea-paste-csv" class="modal-input" rows="6" placeholder="Cap,Player Name,Position,Starter&#10;1,Brennan Dallas,GK,Yes&#10;2,Diego Negrete,Driver,Yes"></textarea>
           </div>
           <button class="modal-submit-btn mt-2" id="btn-parse-pasted-csv">🔍 Parse & Preview Table</button>
-        </div>
-
-        <!-- Template Tab -->
-        <div class="cloud-tab-content" id="imptab-template">
-          <p class="text-muted" style="font-size: 12px;">Copy this template directly into your Google Sheets:</p>
-          <pre id="sample-csv-preview" style="background:#000; padding:10px; border-radius:4px; font-family:var(--font-mono); font-size:11px; color:#86efac;"></pre>
         </div>
 
         <!-- Live Preview of Parsed Roster -->
@@ -353,11 +402,15 @@
               <tbody></tbody>
             </table>
           </div>
+          <button type="button" class="modal-submit-btn mt-2" id="btn-confirm-apply-roster">✅ Apply to Active Roster</button>
         </div>
+
       </div>
       <div class="modal-footer">
-        <button type="button" class="modal-cancel-btn">Cancel</button>
-        <button type="button" class="modal-submit-btn" id="btn-confirm-apply-roster" disabled>✅ Apply to Roster</button>
+        <button type="button" class="modal-cancel-btn">Close</button>
+      </div>
+    </div>
+  </div>
       </div>
     </div>
   </div>

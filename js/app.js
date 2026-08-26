@@ -536,6 +536,249 @@ class WaterPoloApp {
     });
   }
 
+  bindImporterModal() {
+    const modal = document.getElementById('modal-roster-importer');
+    if (!modal) return;
+
+    let parsedMatch = null;
+
+    // Open Modal triggers
+    const openImporter = (targetTeam = 'home') => {
+      this.importTargetTeam = targetTeam;
+      const targetSelect = document.getElementById('import-target-team-select');
+      if (targetSelect) targetSelect.value = targetTeam;
+      this.renderArchiveMatchesList();
+      modal.classList.add('active');
+    };
+
+    const homeImportBtn = document.getElementById('btn-import-home-roster');
+    const awayImportBtn = document.getElementById('btn-import-away-roster');
+    const gsImportBtn = document.getElementById('btn-gs-import-sheets');
+
+    if (homeImportBtn) homeImportBtn.onclick = () => openImporter('home');
+    if (awayImportBtn) awayImportBtn.onclick = () => openImporter('away');
+    if (gsImportBtn) gsImportBtn.onclick = () => openImporter('home');
+
+    // Tab switcher inside modal
+    const tabBtns = modal.querySelectorAll('.cloud-tab-btn');
+    tabBtns.forEach(btn => {
+      btn.onclick = () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        modal.querySelectorAll('.cloud-tab-content').forEach(c => c.classList.remove('active'));
+        const target = modal.querySelector(`#imptab-${btn.dataset.imptab}`);
+        if (target) {
+          target.classList.add('active');
+          if (btn.dataset.imptab === 'archive') {
+            this.renderArchiveMatchesList();
+          }
+        }
+      };
+    });
+
+    // 1. Pull Full Game from Google Sheets
+    const fetchGameBtn = document.getElementById('btn-fetch-google-game');
+    const gamePreviewCard = document.getElementById('parsed-game-preview-card');
+    const gameTitleEl = document.getElementById('parsed-game-title');
+    const gameScoreBadge = document.getElementById('parsed-game-score-badge');
+    const gameMetaEl = document.getElementById('parsed-game-meta');
+
+    if (fetchGameBtn) {
+      fetchGameBtn.onclick = async () => {
+        const url = document.getElementById('input-game-sheets-url')?.value;
+        const gid = document.getElementById('input-game-gid')?.value || '0';
+        const opponent = document.getElementById('input-game-opponent-name')?.value || 'Opponent';
+
+        fetchGameBtn.textContent = '⏳ Pulling Game from Google Sheets...';
+        fetchGameBtn.disabled = true;
+
+        try {
+          parsedMatch = await importer.fetchFullGameFromGoogleSheet(url, gid, opponent);
+          if (parsedMatch) {
+            if (gamePreviewCard) gamePreviewCard.style.display = 'block';
+            if (gameTitleEl) gameTitleEl.textContent = `${parsedMatch.homeTeam.name} vs ${parsedMatch.awayTeam.name}`;
+            if (gameScoreBadge) gameScoreBadge.textContent = `${parsedMatch.homeTeam.score} - ${parsedMatch.awayTeam.score}`;
+            if (gameMetaEl) {
+              gameMetaEl.textContent = `Date: ${parsedMatch.date} • Location: ${parsedMatch.location} • Events extracted: ${parsedMatch.events.length} goals/actions`;
+            }
+            this.showToast(`✅ Successfully pulled ${opponent} game from Google Sheets!`);
+          }
+        } catch (err) {
+          alert(`Error pulling Google Sheet: ${err.message}`);
+        } finally {
+          fetchGameBtn.textContent = '⚡ Pull Game from Google Sheets';
+          fetchGameBtn.disabled = false;
+        }
+      };
+    }
+
+    // Load parsed game into active state
+    const loadGameBtn = document.getElementById('btn-load-parsed-game');
+    if (loadGameBtn) {
+      loadGameBtn.onclick = () => {
+        if (!parsedMatch) return;
+        importer.loadMatchIntoState(parsedMatch);
+        importer.archiveMatch(parsedMatch);
+        modal.classList.remove('active');
+        this.switchTab('boxscore');
+        this.showToast(`📊 Loaded ${parsedMatch.awayTeam.name} match into Box Score & Analytics!`);
+      };
+    }
+
+    // Save parsed game to archive
+    const saveArchiveBtn = document.getElementById('btn-save-parsed-game-archive');
+    if (saveArchiveBtn) {
+      saveArchiveBtn.onclick = () => {
+        if (!parsedMatch) return;
+        importer.archiveMatch(parsedMatch);
+        this.renderArchiveMatchesList();
+        this.showToast(`💾 Saved ${parsedMatch.awayTeam.name} match to archives!`);
+      };
+    }
+
+    // 2. Pull Roster Only from Google Sheets
+    const fetchRosterBtn = document.getElementById('btn-fetch-google-sheet');
+    const previewBox = document.getElementById('importer-preview-box');
+    const previewTable = document.getElementById('parsed-preview-table')?.querySelector('tbody');
+    const parsedCount = document.getElementById('parsed-count');
+    const applyRosterBtn = document.getElementById('btn-confirm-apply-roster');
+
+    if (fetchRosterBtn) {
+      fetchRosterBtn.onclick = async () => {
+        const url = document.getElementById('input-sheets-url')?.value;
+        fetchRosterBtn.textContent = '⏳ Pulling Roster...';
+        fetchRosterBtn.disabled = true;
+
+        try {
+          this.pendingParsedRoster = await importer.fetchFromGoogleSheetUrl(url);
+          if (this.pendingParsedRoster.length > 0) {
+            if (previewBox) previewBox.style.display = 'block';
+            if (parsedCount) parsedCount.textContent = this.pendingParsedRoster.length;
+            if (previewTable) {
+              previewTable.innerHTML = this.pendingParsedRoster.map(p => `
+                <tr>
+                  <td><strong>#${p.cap}</strong></td>
+                  <td>${p.name}</td>
+                  <td>${p.pos}</td>
+                  <td>${p.isGk ? '🧤 Goalkeeper' : (p.isStarter ? '⭐ Starter' : 'Reserve')}</td>
+                </tr>
+              `).join('');
+            }
+            this.showToast(`Found ${this.pendingParsedRoster.length} players from Google Sheets!`);
+          } else {
+            alert('No players found in the specified sheet.');
+          }
+        } catch (err) {
+          alert(`Error fetching roster: ${err.message}`);
+        } finally {
+          fetchRosterBtn.textContent = '⚡ Pull Roster from Google Sheets';
+          fetchRosterBtn.disabled = false;
+        }
+      };
+    }
+
+    // Parse pasted CSV text
+    const parsePastedBtn = document.getElementById('btn-parse-pasted-csv');
+    if (parsePastedBtn) {
+      parsePastedBtn.onclick = () => {
+        const text = document.getElementById('textarea-paste-csv')?.value;
+        if (!text) return alert('Please paste CSV or tab-delimited text first.');
+        this.pendingParsedRoster = importer.parseRosterCSV(text);
+        if (this.pendingParsedRoster.length > 0) {
+          if (previewBox) previewBox.style.display = 'block';
+          if (parsedCount) parsedCount.textContent = this.pendingParsedRoster.length;
+          if (previewTable) {
+            previewTable.innerHTML = this.pendingParsedRoster.map(p => `
+              <tr>
+                <td><strong>#${p.cap}</strong></td>
+                <td>${p.name}</td>
+                <td>${p.pos}</td>
+                <td>${p.isGk ? '🧤 Goalkeeper' : (p.isStarter ? '⭐ Starter' : 'Reserve')}</td>
+              </tr>
+            `).join('');
+          }
+          this.showToast(`Parsed ${this.pendingParsedRoster.length} players!`);
+        } else {
+          alert('Could not parse players from the pasted text.');
+        }
+      };
+    }
+
+    // Apply roster button
+    if (applyRosterBtn) {
+      applyRosterBtn.onclick = () => {
+        if (!this.pendingParsedRoster || this.pendingParsedRoster.length === 0) return;
+        const targetTeam = document.getElementById('import-target-team-select')?.value || this.importTargetTeam;
+        importer.applyRosterToTeam(targetTeam, this.pendingParsedRoster);
+        modal.classList.remove('active');
+        this.showToast(`✅ Applied ${this.pendingParsedRoster.length} players to ${targetTeam.toUpperCase()} team!`);
+      };
+    }
+
+    this.renderArchiveMatchesList();
+  }
+
+  renderArchiveMatchesList() {
+    const tbody = document.getElementById('archive-matches-tbody');
+    const badge = document.getElementById('archive-count-badge');
+    if (!tbody) return;
+
+    const matches = importer.archivedMatches || [];
+    if (badge) badge.textContent = matches.length;
+
+    if (matches.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center" style="padding: 16px;">No archived Google Sheet games found. Use "Pull Offline Game" to import games from your Google Sheet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = matches.map(m => `
+      <tr>
+        <td>
+          <strong>${m.homeTeam.name} vs ${m.awayTeam.name}</strong><br>
+          <span class="text-muted" style="font-size: 11px;">${m.location || 'Damien Aquatic Complex'}</span>
+        </td>
+        <td>${m.date || 'Past Game'}</td>
+        <td>
+          <strong style="font-family: var(--font-mono); color: var(--spartan-gold);">${m.homeTeam.score} - ${m.awayTeam.score}</strong>
+        </td>
+        <td>
+          <div class="user-action-btn-group">
+            <button class="user-act-btn approve" data-matchid="${m.id}" data-action="load" title="Load this match">
+              ▶ Load
+            </button>
+            <button class="user-act-btn reject" data-matchid="${m.id}" data-action="delete" title="Remove from archives">
+              ✕
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('.user-act-btn').forEach(btn => {
+      btn.onclick = () => {
+        const matchId = btn.dataset.matchid;
+        const act = btn.dataset.action;
+        const matched = matches.find(m => m.id === matchId);
+        if (act === 'load' && matched) {
+          importer.loadMatchIntoState(matched);
+          document.getElementById('modal-roster-importer')?.classList.remove('active');
+          this.switchTab('boxscore');
+          this.showToast(`📊 Loaded ${matched.awayTeam.name} game into Box Score!`);
+        } else if (act === 'delete') {
+          if (confirm('Delete this game from match archive?')) {
+            const idx = importer.archivedMatches.findIndex(m => m.id === matchId);
+            if (idx >= 0) {
+              importer.archivedMatches.splice(idx, 1);
+              importer.saveArchivedMatches();
+              this.renderArchiveMatchesList();
+              this.showToast('Game removed from archive.');
+            }
+          }
+        }
+      };
+    });
+  }
+
   switchTab(tabName) {
     this.activeTab = tabName;
     const views = document.querySelectorAll('.app-view-section');
