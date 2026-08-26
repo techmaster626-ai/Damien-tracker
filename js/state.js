@@ -27,7 +27,6 @@ class MatchState {
   }
 
   init() {
-    // Clear any previous cached data to ensure a completely fresh start
     localStorage.removeItem('wps_current_match');
     this.match = createBlankMatch('Damien Spartans', 'Opponent');
     this.shotClock = 30;
