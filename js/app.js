@@ -212,6 +212,7 @@ class WaterPoloApp {
             <option value="getting_started_demo">Getting Started Demo (Damien vs Los Osos)</option>
           </select>
           <button class="action-btn-header secondary" id="btn-new-match-modal">+ New Match</button>
+          <button class="action-btn-header danger-btn" id="btn-reset-all" title="Wipe all data and start completely fresh">🗑️ Reset Fresh</button>
           <button class="action-btn-header icon-only" id="btn-toggle-sound" title="Toggle Whistle/Buzzer Audio">
             ${sound.isMuted() ? '🔇' : '🔊'}
           </button>
@@ -254,6 +255,17 @@ class WaterPoloApp {
     if (newMatchBtn) {
       newMatchBtn.addEventListener('click', () => {
         this.openNewMatchModal();
+      });
+    }
+
+    const resetAllBtn = document.getElementById('btn-reset-all');
+    if (resetAllBtn) {
+      resetAllBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to remove all match data and start completely fresh?')) {
+          state.clearAllData('Damien Spartans', 'Opponent');
+          this.switchTab('scoring');
+          this.showToast('🧹 All data cleared! Starting completely fresh.');
+        }
       });
     }
 

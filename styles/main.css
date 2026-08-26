@@ -207,6 +207,18 @@ body {
   justify-content: center;
 }
 
+.action-btn-header.danger-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.action-btn-header.danger-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
 .action-btn-header.secondary {
   background: rgba(0, 229, 255, 0.12);
   color: var(--accent-cyan);

@@ -27,18 +27,13 @@ class MatchState {
   }
 
   init() {
-    // Start with a clean blank match with no players by default or load saved
-    const saved = localStorage.getItem('wps_current_match');
-    if (saved) {
-      try {
-        this.match = JSON.parse(saved);
-      } catch (e) {
-        this.match = createBlankMatch('Damien Spartans', 'Opponent');
-      }
-    } else {
-      this.match = createBlankMatch('Damien Spartans', 'Opponent');
-    }
-    this.shotClock = this.match.shotClockSec || 30;
+    // Clear any previous cached data to ensure a completely fresh start
+    localStorage.removeItem('wps_current_match');
+    this.match = createBlankMatch('Damien Spartans', 'Opponent');
+    this.shotClock = 30;
+    this.activeExclusions = [];
+    this.undoStack = [];
+    this.redoStack = [];
     this.rebuildActiveLineup();
     this.startTicker();
   }
@@ -53,8 +48,11 @@ class MatchState {
     );
   }
 
-  resetToBlank(homeName = 'Damien Spartans', awayName = 'Opponent') {
+  clearAllData(homeName = 'Damien Spartans', awayName = 'Opponent') {
     this.pauseClock();
+    localStorage.removeItem('wps_current_match');
+    localStorage.removeItem('wps_cloud_matches_cache');
+    sessionStorage.clear();
     this.match = createBlankMatch(homeName, awayName);
     this.shotClock = 30;
     this.activeExclusions = [];
@@ -62,6 +60,10 @@ class MatchState {
     this.redoStack = [];
     this.rebuildActiveLineup();
     this.notify('match_created');
+  }
+
+  resetToBlank(homeName = 'Damien Spartans', awayName = 'Opponent') {
+    this.clearAllData(homeName, awayName);
   }
 
   subscribe(listener) {
