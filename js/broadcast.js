@@ -66,6 +66,7 @@ export class BroadcastEngine {
         <div class="scorebug-hud">
           <!-- Home Team Block -->
           <div class="scorebug-team home-side" style="border-left: 6px solid ${home.capColor};">
+            <img src="assets/damien-logo.png" alt="Damien Helmet" style="height: 28px; width: 28px; object-fit: contain; margin-right: 6px;">
             <div class="team-cap-box" style="background-color: ${home.capColor}; color: ${home.capTextColor};">
               <span class="cap-label">HOME</span>
             </div>

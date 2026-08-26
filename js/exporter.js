@@ -161,8 +161,11 @@ export class ExporterEngine {
         <!-- Sheet Header -->
         <div class="ds-header-grid">
           <div class="ds-title-area">
-            <h2 class="ds-main-title">Stats Sheet - Damien Varsity WaterPolo</h2>
-            <div class="ds-meta-row">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <img src="assets/damien-logo.png" alt="Damien Spartans" style="height: 28px; width: auto; object-fit: contain;">
+              <h2 class="ds-main-title" style="margin: 0;">Stats Sheet - Damien Varsity WaterPolo</h2>
+            </div>
+            <div class="ds-meta-row" style="margin-top: 4px;">
               <span><strong>Date:</strong> ${state.match.date || '____________'}</span>
               <span><strong>Location:</strong> ${state.match.location || 'Damien Aquatic Complex'}</span>
               <span><strong>Official 1:</strong> ____________</span>
