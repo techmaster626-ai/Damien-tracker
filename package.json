@@ -1,7 +1,7 @@
 {
-  "name": "water-polo-stats-tracker",
+  "name": "damien-spartans-water-polo-tracker",
   "version": "1.0.0",
-  "description": "Professional Water Polo Stats Tracker with live scoring, 30s/20s shot clock, 20s exclusion timer, interactive SVG pool shot chart, official NCAA/FINA box scores, MaxPreps export, and OBS broadcast stream overlay.",
+  "description": "Official Damien High School Spartans Boys Water Polo stats tracker, live scorekeeping, 30s shot clock, 20s exclusion timer, interactive pool shot chart, CIF-SS & NCAA box scores, MaxPreps export, and live stream scorebug.",
   "main": "index.html",
   "scripts": {
     "start": "powershell -ExecutionPolicy Bypass -File server.ps1 -Port 8080"

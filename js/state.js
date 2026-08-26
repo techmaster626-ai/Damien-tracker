@@ -27,16 +27,16 @@ class MatchState {
   }
 
   init() {
-    // Load last saved match or default to Olympic Final demo
+    // Load last saved match or default to Damien Spartans CIF Championship demo
     const saved = localStorage.getItem('wps_current_match');
     if (saved) {
       try {
         this.match = JSON.parse(saved);
       } catch (e) {
-        this.match = JSON.parse(JSON.stringify(PRESET_MATCHES.olympic_final));
+        this.match = JSON.parse(JSON.stringify(PRESET_MATCHES.damien_cif_final));
       }
     } else {
-      this.match = JSON.parse(JSON.stringify(PRESET_MATCHES.olympic_final));
+      this.match = JSON.parse(JSON.stringify(PRESET_MATCHES.damien_cif_final));
     }
     this.shotClock = this.match.shotClockSec || 30;
     this.rebuildActiveLineup();

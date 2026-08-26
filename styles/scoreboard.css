@@ -40,13 +40,13 @@
 }
 
 .score-display-box {
-  background: rgba(10, 24, 41, 0.9);
-  border: 2px solid rgba(0, 229, 255, 0.3);
+  background: rgba(8, 30, 22, 0.95);
+  border: 2px solid rgba(255, 184, 28, 0.4);
   border-radius: var(--radius-md);
   padding: 8px 24px;
   min-width: 90px;
   text-align: center;
-  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8), 0 0 14px rgba(255, 184, 28, 0.2);
 }
 
 .score-number {
@@ -54,13 +54,13 @@
   font-weight: 800;
   font-family: var(--font-mono);
   line-height: 1;
-  color: var(--accent-cyan);
-  text-shadow: 0 0 16px var(--accent-cyan-glow);
+  color: var(--spartan-gold);
+  text-shadow: 0 0 16px var(--spartan-gold-glow);
 }
 
 .team-score-block.away-side .score-number {
-  color: var(--accent-amber);
-  text-shadow: 0 0 16px var(--accent-amber-glow);
+  color: #38bdf8;
+  text-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
 }
 
 .team-meta-info {

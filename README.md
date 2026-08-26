@@ -1,9 +1,12 @@
-# 🤽‍♂️ Water Polo Stats Tracker
+# 🤽‍♂️ Damien Spartans • Water Polo Stats Tracker
 
-> A modern, real-time Water Polo scorekeeping, analytics, Firebase Cloud Sync, and live broadcast overlay platform inspired by [`water-polo-stats.com`](https://water-polo-stats.com/) and built to NCAA & World Aquatics (FINA) electronic scorekeeping standards.
+> Official Water Polo stats tracker, scorekeeping, analytics, and live broadcast overlay platform for **Damien High School Spartans** (La Verne, CA • Baseline League / CIF Southern Section). Built to CIF-SS, NCAA & World Aquatics electronic scorekeeping standards with Firebase Cloud Sync.
 
+[![Damien Green & Spartan Gold](https://img.shields.io/badge/Damien%20Colors-%230E3D2F%20%7C%20%23FFB81C-0E3D2F)](styles/)
+[![Mascot: Spartans](https://img.shields.io/badge/Mascot-Spartans%20%E2%9A%94%EF%B8%8F-FFB81C)](js/presets.js)
+[![CIF-SS Baseline League](https://img.shields.io/badge/League-CIF--SS%20%7C%20Baseline%20League-10B981)](#-cif-ss--baseline-league-support)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Firebase: Firestore & Auth](https://img.shields.io/badge/Firebase-Firestore%20%26%20Auth-FFCA28?logo=firebase&logoColor=black)](firestore.rules)
+[![Firebase Cloud Sync](https://img.shields.io/badge/Firebase-Firestore%20Sync-FFCA28?logo=firebase&logoColor=black)](firestore.rules)
 [![Vanilla JS](https://img.shields.io/badge/Vanilla-JavaScript-F7DF1E?logo=javascript&logoColor=black)](js/)
 [![HTML5](https://img.shields.io/badge/HTML5-Modern%20Semantic-E34F26?logo=html5&logoColor=white)](index.html)
 [![CSS3](https://img.shields.io/badge/CSS3-Aquatic%20Glassmorphism-1572B6?logo=css3&logoColor=white)](styles/)

@@ -104,10 +104,34 @@ class WaterPoloApp {
     topBar.innerHTML = `
       <div class="top-nav-container">
         <div class="brand-block">
-          <div class="brand-icon">🤽‍♂️</div>
+          <div class="brand-spartan-logo">
+            <svg viewBox="0 0 100 100" class="spartan-helmet-svg">
+              <defs>
+                <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ffe066" />
+                  <stop offset="50%" stop-color="#ffb81c" />
+                  <stop offset="100%" stop-color="#d99400" />
+                </linearGradient>
+                <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#144d3b" />
+                  <stop offset="100%" stop-color="#0a291f" />
+                </linearGradient>
+              </defs>
+              <!-- Spartan Crest / Plume -->
+              <path d="M 50 8 C 30 8 20 22 20 38 C 28 32 38 28 50 28 C 62 28 72 32 80 38 C 80 22 70 8 50 8 Z" fill="url(#goldGrad)" />
+              <path d="M 46 12 L 54 12 L 52 28 L 48 28 Z" fill="#ffffff" opacity="0.4" />
+              <!-- Helmet Face Shell -->
+              <path d="M 24 38 C 24 60 32 78 50 92 C 68 78 76 60 76 38 C 65 34 50 34 50 34 C 50 34 35 34 24 38 Z" fill="url(#greenGrad)" stroke="#ffb81c" stroke-width="3" />
+              <!-- Spartan Eye T-Slit -->
+              <path d="M 32 46 L 68 46 L 66 54 L 54 54 L 54 74 L 46 74 L 46 54 L 34 54 Z" fill="#ffb81c" />
+              <!-- Nose Guard & Cheek plates -->
+              <path d="M 47 46 L 53 46 L 52 68 L 48 68 Z" fill="#082119" />
+              <circle cx="50" cy="20" r="3" fill="#ffffff" />
+            </svg>
+          </div>
           <div class="brand-text">
-            <h1 class="brand-title">Water Polo Stats Tracker</h1>
-            <span class="brand-badge">PRO EDITION • FINA & NCAA</span>
+            <h1 class="brand-title">DAMIEN SPARTANS</h1>
+            <span class="brand-badge">WATER POLO STATS TRACKER • CIF-SS</span>
           </div>
         </div>
 
@@ -124,8 +148,8 @@ class WaterPoloApp {
             ☁️ Cloud Sync
           </button>
           <select id="select-preset-match" class="preset-dropdown">
+            <option value="damien_cif_final">Damien Spartans vs Los Osos (CIF Final)</option>
             <option value="olympic_final">Demo: USA vs Hungary (Olympic Final)</option>
-            <option value="ncaa_championship">Demo: Stanford vs UCLA (NCAA Final)</option>
           </select>
           <button class="action-btn-header secondary" id="btn-new-match-modal">+ New Match</button>
           <button class="action-btn-header icon-only" id="btn-toggle-sound" title="Toggle Whistle/Buzzer Audio">
