@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Water Polo Stats Tracker • Live Scorekeeping & Analytics</title>
+  <meta name="description" content="Professional Water Polo Stats Tracker with live match scoring, 30s shot clock, 20s exclusion timer, interactive pool shot chart & goal heatmaps, official NCAA/FINA box scores, MaxPreps export, Firebase Cloud Sync, and broadcast stream overlay.">
+
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/scoreboard.css">
+  <link rel="stylesheet" href="styles/pool-map.css">
+  <link rel="stylesheet" href="styles/boxscore.css">
+  <link rel="stylesheet" href="styles/overlay.css">
+</head>
+<body>
+
+  <!-- Top App Navigation & Branding Header -->
+  <header class="top-header" id="app-top-header"></header>
+
+  <!-- Live Toast Notification Banner -->
+  <div id="app-toast-container" class="toast-container"></div>
+
+  <!-- Main Application Workspace -->
+  <main class="app-container">
+
+    <!-- VIEW 1: LIVE SCORING & POOL COMMAND CENTER -->
+    <section class="app-view-section active" id="view-scoring">
+      
+      <!-- Central Scoreboard HUD & Clocks -->
+      <div class="scoreboard-hud-card">
+        <div class="scoreboard-top-row">
+          
+          <!-- Home Team Banner -->
+          <div class="team-score-block home-side">
+            <div class="score-display-box">
+              <span class="score-number" id="hud-home-score">0</span>
+            </div>
+            <div class="team-meta-info">
+              <span class="team-name-lg" id="hud-home-name">Home White</span>
+              <div class="team-badges-row">
+                <span class="possession-badge active" id="poss-indicator-home">POSSESSION ◀</span>
+                <span class="power-play-pill" id="power-play-badge-home">6 ON 5 MAN UP</span>
+                <span class="team-timeouts-pill" id="hud-home-timeouts">TO: 2</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Central Game Clock & Period Module -->
+          <div class="scoreboard-center-clocks">
+            <div class="game-clock-column">
+              <span class="period-indicator-badge" id="hud-period-badge">Quarter 1</span>
+              <div class="game-clock-display stopped" id="hud-game-clock" title="Click to edit time">8:00</div>
+            </div>
+
+            <!-- 30-Second Shot Clock Circular Ring -->
+            <div class="shot-clock-column">
+              <div class="shot-clock-svg-wrap">
+                <svg class="shot-clock-svg" viewBox="0 0 80 80">
+                  <circle class="shot-clock-ring-bg" cx="40" cy="40" r="36" />
+                  <circle class="shot-clock-ring-prog" id="shot-clock-ring-circle" cx="40" cy="40" r="36" />
+                </svg>
+                <span class="shot-clock-number" id="hud-shot-clock">30</span>
+              </div>
+              <span class="shot-clock-label">SHOT CLOCK</span>
+            </div>
+          </div>
+
+          <!-- Away Team Banner -->
+          <div class="team-score-block away-side">
+            <div class="score-display-box">
+              <span class="score-number" id="hud-away-score">0</span>
+            </div>
+            <div class="team-meta-info" style="align-items: flex-end;">
+              <span class="team-name-lg" id="hud-away-name">Away Blue</span>
+              <div class="team-badges-row">
+                <span class="team-timeouts-pill" id="hud-away-timeouts">TO: 2</span>
+                <span class="power-play-pill" id="power-play-badge-away">6 ON 5 MAN UP</span>
+                <span class="possession-badge" id="poss-indicator-away">▶ POSSESSION</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Active 20-Second Exclusion Penalty Box Strip -->
+        <div class="exclusion-box-strip" id="exclusion-penalty-box">
+          <div class="exclusion-empty-state">
+            <span class="pulse-dot-green"></span>
+            <span>Even Strength (6 on 6 + Goalkeepers)</span>
+          </div>
+        </div>
+
+        <!-- Clock Controls & Quick Resets -->
+        <div class="scoreboard-controls-row">
+          <div class="control-btn-group">
+            <button class="clock-btn primary-play" id="btn-toggle-clock">
+              <span class="icon">▶</span> Start Clock (Space)
+            </button>
+            <button class="clock-btn" id="btn-clock-plus10">+10s</button>
+            <button class="clock-btn" id="btn-clock-minus10">-10s</button>
+            <button class="clock-btn" id="btn-edit-clock-time">✏️ Edit Time</button>
+          </div>
+
+          <div class="control-btn-group">
+            <button class="clock-btn reset-shot" id="btn-reset-30">⚡ Reset 30s (S)</button>
+            <button class="clock-btn reset-shot" id="btn-reset-20">⏱️ Reset 20s (E)</button>
+            <button class="clock-btn" id="btn-advance-quarter">Adv Quarter ⏩</button>
+            <button class="clock-btn" id="btn-quick-undo">↩ Undo (Z)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live 3-Column Layout: Home Roster | Center Pool & Action Pad | Away Roster -->
+      <div class="scoring-layout-grid">
+        
+        <!-- Left Column: Home Team Roster -->
+        <div class="roster-column-card">
+          <div class="roster-team-header">
+            <div class="team-header-title">
+              <div class="team-cap-badge-icon" style="background-color: #ffffff; border: 1px solid #94a3b8;"></div>
+              <div class="team-title-text">
+                <h3>Home Roster</h3>
+              </div>
+            </div>
+            <span class="team-timeouts-pill">Active 7</span>
+          </div>
+          <div class="roster-selector-grid" id="home-roster-selector-grid"></div>
+        </div>
+
+        <!-- Center Column: Pool Shot Chart & Rapid Action Pad -->
+        <div class="scoring-center-hub">
+          
+          <!-- Interactive Pool Court & Goal Face Target Grid -->
+          <div class="pool-and-goal-grid">
+            <div id="pool-diagram-mount"></div>
+            <div id="goal-face-mount"></div>
+          </div>
+
+          <!-- Rapid Action Pad (One-Tap Events) -->
+          <div class="rapid-action-pad">
+            <div class="action-pad-title">
+              <h4>⚡ Rapid Event Logger (Select Cap on Left/Right, Then Action)</h4>
+            </div>
+
+            <div class="action-buttons-grid">
+              <button class="quick-act-btn goal-btn" data-action="goal">
+                <span class="act-icon">⚽</span>
+                <span class="act-label">GOAL (G)</span>
+              </button>
+
+              <button class="quick-act-btn exclusion-btn" data-action="exclusion">
+                <span class="act-icon">⏱️</span>
+                <span class="act-label">20s Exclusion (F)</span>
+              </button>
+
+              <button class="quick-act-btn save-btn" data-action="save">
+                <span class="act-icon">🧤</span>
+                <span class="act-label">Goalie Save (V)</span>
+              </button>
+
+              <button class="quick-act-btn" data-action="miss">
+                <span class="act-icon">❌</span>
+                <span class="act-label">Missed Shot (M)</span>
+              </button>
+
+              <button class="quick-act-btn penalty-btn" data-action="penalty_drawn">
+                <span class="act-icon">🎯</span>
+                <span class="act-label">5m Penalty Drawn</span>
+              </button>
+
+              <button class="quick-act-btn" data-action="steal">
+                <span class="act-icon">🤹</span>
+                <span class="act-label">Steal / Intercept</span>
+              </button>
+
+              <button class="quick-act-btn" data-action="block">
+                <span class="act-icon">🛡️</span>
+                <span class="act-label">Field Block</span>
+              </button>
+
+              <button class="quick-act-btn" data-action="turnover">
+                <span class="act-icon">🔄</span>
+                <span class="act-label">Turnover / Foul</span>
+              </button>
+
+              <button class="quick-act-btn" data-action="sprint">
+                <span class="act-icon">🏊</span>
+                <span class="act-label">Sprint Won</span>
+              </button>
+
+              <button class="quick-act-btn" data-action="timeout">
+                <span class="act-icon">⏸️</span>
+                <span class="act-label">Timeout (30s/60s)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Hotkey Quick Bar -->
+          <div class="hotkey-hints-bar">
+            <span><kbd>Space</kbd> Start/Stop Clock</span>
+            <span><kbd>S</kbd> 30s Shot Reset</span>
+            <span><kbd>E</kbd> 20s Exclusion Reset</span>
+            <span><kbd>G</kbd> Goal</span>
+            <span><kbd>F</kbd> Exclusion</span>
+            <span><kbd>V</kbd> Save</span>
+            <span><kbd>M</kbd> Miss</span>
+            <span><kbd>Z</kbd> Undo</span>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Away Team Roster -->
+        <div class="roster-column-card away-roster-column">
+          <div class="roster-team-header">
+            <div class="team-header-title">
+              <div class="team-cap-badge-icon" style="background-color: #1b4d3e; border: 1px solid #94a3b8;"></div>
+              <div class="team-title-text">
+                <h3>Away Roster</h3>
+              </div>
+            </div>
+            <span class="team-timeouts-pill">Active 7</span>
+          </div>
+          <div class="roster-selector-grid" id="away-roster-selector-grid"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- VIEW 2: OFFICIAL BOX SCORE & ANALYTICS -->
+    <section class="app-view-section" id="view-boxscore">
+      <div id="boxscore-view-mount"></div>
+    </section>
+
+    <!-- VIEW 3: PLAY-BY-PLAY TIMELINE -->
+    <section class="app-view-section" id="view-pbp">
+      <div id="pbp-view-mount"></div>
+    </section>
+
+    <!-- VIEW 4: BROADCAST SCOREBUG & STREAM MODE -->
+    <section class="app-view-section" id="view-broadcast">
+      <!-- Broadcast Window / Fullscreen HUD Mount -->
+      <div class="broadcast-overlay-container" id="broadcast-overlay-mount"></div>
+    </section>
+
+    <!-- VIEW 5: EXPORT & INTEGRATIONS -->
+    <section class="app-view-section" id="view-export"></section>
+
+  </main>
+
+  <!-- MODALS -->
+
+  <!-- Modal: Firebase Cloud Sync & Live Room -->
+  <div class="modal-overlay" id="modal-cloud-sync">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3>☁️ Firebase Cloud Sync & Live Share</h3>
+        <button class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="cloud-tabs-nav">
+          <button class="cloud-tab-btn active" data-cloudtab="save">Save & Live Host</button>
+          <button class="cloud-tab-btn" data-cloudtab="list">Cloud Matches</button>
+          <button class="cloud-tab-btn" data-cloudtab="join">Join Live Match</button>
+          <button class="cloud-tab-btn" data-cloudtab="config">Firebase Settings</button>
+        </div>
+
+        <!-- Tab 1: Save & Host -->
+        <div class="cloud-tab-content active" id="cloudtab-save">
+          <div class="cloud-sync-info-box">
+            <p>Save this match to <strong>Cloud Firestore</strong> to sync across poolside tablets, spectator phones, and live OBS scorebugs.</p>
+          </div>
+          <div class="cloud-actions-row mt-3">
+            <button class="modal-submit-btn" id="btn-cloud-save-match">☁️ Save Active Match to Cloud</button>
+            <button class="modal-submit-btn secondary-btn" id="btn-cloud-toggle-live">📡 Start Live Broadcast Sync</button>
+          </div>
+          <div id="live-broadcast-room-box" class="live-room-box mt-3" style="display: none;">
+            <div class="room-code-badge">
+              <span>LIVE ROOM ID:</span>
+              <strong id="live-room-code-text">WP-2024</strong>
+            </div>
+            <p class="room-help-text">Spectators and broadcast computers can connect in real time using this Room ID.</p>
+            <button class="copy-btn mt-2" id="btn-copy-live-link">📋 Copy Spectator Live Link</button>
+          </div>
+        </div>
+
+        <!-- Tab 2: Cloud Matches List -->
+        <div class="cloud-tab-content" id="cloudtab-list">
+          <div class="cloud-matches-list-wrap">
+            <div id="cloud-matches-list-container">
+              <p class="text-muted">Loading matches from Firebase...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Join Live Match -->
+        <div class="cloud-tab-content" id="cloudtab-join">
+          <div class="modal-form-group">
+            <label>Enter Live Room ID / Match ID</label>
+            <input type="text" id="input-join-room-id" class="modal-input" placeholder="e.g. match_olympic_final_2024">
+          </div>
+          <button class="modal-submit-btn mt-3" id="btn-join-live-room">🔗 Connect to Live Match</button>
+        </div>
+
+        <!-- Tab 4: Config Settings -->
+        <div class="cloud-tab-content" id="cloudtab-config">
+          <div class="modal-form-group">
+            <label>Firebase Project ID</label>
+            <input type="text" id="cfg-project-id" class="modal-input" value="water-polo-stats-tracker">
+          </div>
+          <div class="modal-form-group">
+            <label>Firebase API Key</label>
+            <input type="text" id="cfg-api-key" class="modal-input" placeholder="AIzaSy...">
+          </div>
+          <div class="modal-form-group">
+            <label>Auth Domain</label>
+            <input type="text" id="cfg-auth-domain" class="modal-input" value="water-polo-stats-tracker.firebaseapp.com">
+          </div>
+          <button class="modal-submit-btn mt-3" id="btn-save-firebase-config">Save Custom Config</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Log Goal -->
+  <div class="modal-overlay" id="modal-log-goal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⚽ Log Goal Details</h3>
+        <button class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-form-group">
+          <label>Goal Scorer (Cap #)</label>
+          <select id="goal-scorer-select" class="modal-select"></select>
+        </div>
+        <div class="modal-form-group">
+          <label>Assisted By</label>
+          <select id="goal-assist-select" class="modal-select"></select>
+        </div>
+        <div class="modal-form-group">
+          <label>Shot Type / Situation</label>
+          <div class="shot-type-pill-group">
+            <button type="button" class="shot-type-pill active" data-type="action">Action / Perimeter</button>
+            <button type="button" class="shot-type-pill" data-type="6on5">6-on-5 Man Up</button>
+            <button type="button" class="shot-type-pill" data-type="penalty">5m Penalty</button>
+            <button type="button" class="shot-type-pill" data-type="center">2m Center Hole Set</button>
+            <button type="button" class="shot-type-pill" data-type="counter">Counter Attack</button>
+            <button type="button" class="shot-type-pill" data-type="lob">Lob Shot</button>
+            <button type="button" class="shot-type-pill" data-type="skip">Skip Shot</button>
+            <button type="button" class="shot-type-pill" data-type="backhand">Backhand</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn">Cancel</button>
+        <button type="button" class="modal-submit-btn" id="btn-submit-goal-log">Save Goal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Log Exclusion -->
+  <div class="modal-overlay" id="modal-log-exclusion">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⏱️ Log 20-Second Exclusion (Ejection)</h3>
+        <button class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-form-group">
+          <label>Offending Player (Exclusion Committed)</label>
+          <select id="exclusion-offender-select" class="modal-select"></select>
+        </div>
+        <div class="modal-form-group">
+          <label>Drawn by Opponent (Center / Driver)</label>
+          <select id="exclusion-drawn-select" class="modal-select"></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn">Cancel</button>
+        <button type="button" class="modal-submit-btn" id="btn-submit-exclusion-log">Start 20s Exclusion</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Clock Time -->
+  <div class="modal-overlay" id="modal-edit-clock">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>✏️ Edit Period & Clock Time</h3>
+        <button class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-form-group">
+          <label>Period / Quarter</label>
+          <select id="input-clock-quarter" class="modal-select">
+            <option value="1">Quarter 1</option>
+            <option value="2">Quarter 2</option>
+            <option value="3">Quarter 3</option>
+            <option value="4">Quarter 4</option>
+            <option value="5">Overtime 1</option>
+            <option value="6">Overtime 2</option>
+          </select>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="modal-form-group">
+            <label>Minutes</label>
+            <input type="number" id="input-clock-min" class="modal-input" min="0" max="20" value="8">
+          </div>
+          <div class="modal-form-group">
+            <label>Seconds</label>
+            <input type="number" id="input-clock-sec" class="modal-input" min="0" max="59" value="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn">Cancel</button>
+        <button type="button" class="modal-submit-btn" id="btn-submit-clock-edit">Set Clock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: New Match Setup Wizard -->
+  <div class="modal-overlay" id="modal-new-match">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🆕 Setup New Water Polo Match</h3>
+        <button class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-form-group">
+          <label>Home Team Name</label>
+          <input type="text" id="input-new-home-name" class="modal-input" value="Home White">
+        </div>
+        <div class="modal-form-group">
+          <label>Away Team Name</label>
+          <input type="text" id="input-new-away-name" class="modal-input" value="Away Blue">
+        </div>
+        <div class="modal-form-group">
+          <label>Quarter Length</label>
+          <select id="input-new-quarter-min" class="modal-select">
+            <option value="8">8 Minutes (FINA / NCAA / College)</option>
+            <option value="7">7 Minutes (High School Varsity CIF)</option>
+            <option value="6">6 Minutes (High School JV / Masters)</option>
+            <option value="5">5 Minutes (Youth Age Group)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-cancel-btn">Cancel</button>
+        <button type="button" class="modal-submit-btn" id="btn-submit-new-match">Create Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main ES Module Bootstrapper -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

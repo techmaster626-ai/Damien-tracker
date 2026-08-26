@@ -1,0 +1,417 @@
+/**
+ * Scoreboard HUD and Exclusion Penalty Box Styles
+ */
+
+.scoreboard-hud-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 24px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scoreboard-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* Team Score Columns */
+.team-score-block {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.team-score-block.home-side {
+  justify-content: flex-start;
+}
+
+.team-score-block.away-side {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+.score-display-box {
+  background: rgba(10, 24, 41, 0.9);
+  border: 2px solid rgba(0, 229, 255, 0.3);
+  border-radius: var(--radius-md);
+  padding: 8px 24px;
+  min-width: 90px;
+  text-align: center;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.6);
+}
+
+.score-number {
+  font-size: 54px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  line-height: 1;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 16px var(--accent-cyan-glow);
+}
+
+.team-score-block.away-side .score-number {
+  color: var(--accent-amber);
+  text-shadow: 0 0 16px var(--accent-amber-glow);
+}
+
+.team-meta-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.team-name-lg {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.team-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.possession-badge {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.possession-badge.active {
+  background: var(--accent-cyan);
+  color: #041224;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan-glow);
+}
+
+.team-score-block.away-side .possession-badge.active {
+  background: var(--accent-amber);
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 10px var(--accent-amber-glow);
+}
+
+.power-play-pill {
+  display: none;
+  background: rgba(234, 179, 8, 0.2);
+  border: 1px solid var(--accent-amber);
+  color: var(--accent-amber);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+  animation: pulseAmber 1.2s infinite ease-in-out;
+}
+
+.power-play-pill.visible {
+  display: inline-block;
+}
+
+@keyframes pulseAmber {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+/* Center Clocks Module */
+.scoreboard-center-clocks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: rgba(8, 20, 36, 0.95);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: var(--radius-md);
+  padding: 10px 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.game-clock-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.period-indicator-badge {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.game-clock-display {
+  font-size: 48px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  line-height: 1;
+  color: #ffffff;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.game-clock-display.running {
+  color: #a7f3d0;
+  text-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+}
+
+.game-clock-display.stopped {
+  color: #f87171;
+}
+
+/* Shot Clock Circular Module */
+.shot-clock-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.shot-clock-svg-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shot-clock-svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.shot-clock-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 6;
+}
+
+.shot-clock-ring-prog {
+  fill: none;
+  stroke: var(--accent-cyan);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 226.2; /* 2*pi*36 */
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.shot-clock-number {
+  position: absolute;
+  font-size: 28px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  color: var(--accent-cyan);
+}
+
+.shot-clock-number.warning {
+  color: var(--accent-amber);
+}
+
+.shot-clock-number.critical {
+  color: var(--accent-red);
+  animation: pulseBlink 0.5s infinite alternate;
+}
+
+@keyframes pulseBlink {
+  from { opacity: 0.4; }
+  to { opacity: 1; transform: scale(1.1); }
+}
+
+.shot-clock-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Clock Quick Control Bar */
+.scoreboard-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.control-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clock-btn {
+  background: rgba(10, 24, 41, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clock-btn:hover {
+  background: rgba(0, 229, 255, 0.12);
+  border-color: var(--accent-cyan);
+}
+
+.clock-btn.primary-play {
+  background: var(--accent-green);
+  color: #022c22;
+  border: none;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.clock-btn.primary-play.is-running {
+  background: var(--accent-red);
+  color: #450a0a;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+.clock-btn.reset-shot {
+  background: rgba(0, 229, 255, 0.15);
+  color: var(--accent-cyan);
+  border-color: rgba(0, 229, 255, 0.4);
+}
+
+.clock-btn.reset-shot:hover {
+  background: var(--accent-cyan);
+  color: #031020;
+}
+
+/* Active Exclusion Penalty Box */
+.exclusion-box-strip {
+  background: rgba(7, 18, 34, 0.7);
+  border: 1px dashed rgba(234, 179, 8, 0.4);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 48px;
+}
+
+.exclusion-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pulse-dot-green {
+  width: 8px;
+  height: 8px;
+  background: var(--accent-green);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-green);
+}
+
+.active-exclusion-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid var(--accent-amber);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  animation: pulseCard 1.5s infinite alternate;
+}
+
+@keyframes pulseCard {
+  from { border-color: rgba(234, 179, 8, 0.4); }
+  to { border-color: var(--accent-amber); }
+}
+
+.exc-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exc-badge-cap {
+  background: var(--accent-amber);
+  color: #451a03;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.exc-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.exc-player-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.exc-team-label {
+  font-size: 10px;
+  color: var(--accent-amber);
+}
+
+.exc-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exc-timer-count {
+  font-size: 16px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  color: var(--accent-amber);
+}
+
+.exc-wave-in-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.exc-wave-in-btn:hover {
+  background: var(--accent-green);
+  color: #022c22;
+  border-color: var(--accent-green);
+}

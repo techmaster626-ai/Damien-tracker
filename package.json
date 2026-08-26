@@ -1,0 +1,32 @@
+{
+  "name": "water-polo-stats-tracker",
+  "version": "1.0.0",
+  "description": "Professional Water Polo Stats Tracker with live scoring, 30s/20s shot clock, 20s exclusion timer, interactive SVG pool shot chart, official NCAA/FINA box scores, MaxPreps export, and OBS broadcast stream overlay.",
+  "main": "index.html",
+  "scripts": {
+    "start": "powershell -ExecutionPolicy Bypass -File server.ps1 -Port 8080"
+  },
+  "keywords": [
+    "water-polo",
+    "water-polo-stats",
+    "scorekeeper",
+    "shot-clock",
+    "sports-analytics",
+    "ncaa",
+    "world-aquatics",
+    "fina",
+    "maxpreps",
+    "broadcast-overlay",
+    "obs-scorebug"
+  ],
+  "author": "Water Polo Stats Tracker Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/water-polo-stats-tracker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/water-polo-stats-tracker/issues"
+  },
+  "homepage": "https://your-username.github.io/water-polo-stats-tracker/"
+}
