@@ -206,6 +206,7 @@ class WaterPoloApp {
                 <span class="dropdown-user-name">${auth.currentUser?.name || 'Guest User'}</span>
                 <span class="dropdown-user-email">${auth.currentUser?.email || 'Not signed in'}</span>
               </div>
+              <button class="dropdown-btn-item" id="btn-dropdown-edit-profile">✏️ Edit My Profile</button>
               ${auth.isAdmin() ? `<button class="dropdown-btn-item" id="btn-dropdown-approvals">👥 User Approvals ${auth.getPendingUsers().length > 0 ? `<span class="badge-count" style="background:#ef4444; color:#fff; padding:1px 6px; border-radius:10px; font-size:10px;">${auth.getPendingUsers().length} new</span>` : ''}</button>` : ''}
               <button class="dropdown-btn-item" id="btn-dropdown-switch-role">🔄 Switch Role / Profile</button>
               <button class="dropdown-btn-item" id="btn-dropdown-auth-modal">🔐 Sign In as Another User</button>
@@ -320,6 +321,7 @@ class WaterPoloApp {
     const switchRoleBtn = document.getElementById('btn-dropdown-switch-role');
     const authModalBtn = document.getElementById('btn-dropdown-auth-modal');
     const approvalsBtn = document.getElementById('btn-dropdown-approvals');
+    const editProfileBtn = document.getElementById('btn-dropdown-edit-profile');
     const logoutBtn = document.getElementById('btn-dropdown-logout');
 
     if (approvalsBtn) {
@@ -332,12 +334,22 @@ class WaterPoloApp {
       };
     }
 
+    if (editProfileBtn) {
+      editProfileBtn.onclick = () => {
+        dropdown?.classList.remove('active');
+        if (auth.currentUser) {
+          this.openEditUserModal(auth.currentUser.uid);
+        } else {
+          this.showToast('Please sign in first.');
+        }
+      };
+    }
+
     if (switchRoleBtn) {
       switchRoleBtn.onclick = () => {
         dropdown?.classList.remove('active');
         this.renderAdminUsersList();
         modal.classList.add('active');
-        // Switch to demo tab
         const demoTabBtn = modal.querySelector('[data-authtab="demo"]');
         if (demoTabBtn) demoTabBtn.click();
       };
@@ -432,7 +444,54 @@ class WaterPoloApp {
       };
     }
 
+    // Save Edit User Modal Handler
+    const saveEditUserBtn = document.getElementById('btn-save-edit-user');
+    if (saveEditUserBtn) {
+      saveEditUserBtn.onclick = () => {
+        const uid = document.getElementById('edit-user-uid')?.value;
+        const name = document.getElementById('edit-user-name')?.value;
+        const email = document.getElementById('edit-user-email')?.value;
+        const role = document.getElementById('edit-user-role')?.value;
+        const status = document.getElementById('edit-user-status')?.value;
+        const password = document.getElementById('edit-user-password')?.value;
+
+        if (!name || !email) return alert('Name and email are required');
+
+        const res = auth.updateUserDetails(uid, { name, email, role, status, password });
+        if (res.success) {
+          document.getElementById('modal-edit-user')?.classList.remove('active');
+          this.showToast(`✅ Updated user profile for ${res.user.name}!`);
+          this.renderAdminUsersList();
+        } else {
+          alert(res.error);
+        }
+      };
+    }
+
     this.renderAdminUsersList();
+  }
+
+  openEditUserModal(uid) {
+    const editModal = document.getElementById('modal-edit-user');
+    if (!editModal) return;
+
+    const user = auth.getUserById(uid);
+    if (!user) return alert('User not found.');
+
+    document.getElementById('edit-user-uid').value = user.uid;
+    document.getElementById('edit-user-name').value = user.name || '';
+    document.getElementById('edit-user-email').value = user.email || '';
+    document.getElementById('edit-user-role').value = user.role || 'parent';
+    document.getElementById('edit-user-status').value = user.status || 'approved';
+    document.getElementById('edit-user-password').value = '';
+
+    // If not admin, disable changing role and status
+    const roleSelect = document.getElementById('edit-user-role');
+    const statusSelect = document.getElementById('edit-user-status');
+    if (roleSelect) roleSelect.disabled = !auth.isAdmin();
+    if (statusSelect) statusSelect.disabled = !auth.isAdmin();
+
+    editModal.classList.add('active');
   }
 
   renderAdminUsersList() {
@@ -453,7 +512,6 @@ class WaterPoloApp {
       }
     }
 
-    // Only show approvals tab button if user is Admin
     if (approvalsTabBtn) {
       approvalsTabBtn.style.display = auth.isAdmin() ? 'inline-block' : 'none';
     }
@@ -480,28 +538,23 @@ class WaterPoloApp {
             <span class="status-badge ${u.status}">${u.status.toUpperCase()}</span>
           </td>
           <td>
-            ${isSuperUser ? '<span class="text-muted" style="font-size: 11px;">Super Admin</span>' : `
-              <div class="user-action-btn-group">
-                ${isPending ? `
-                  <button class="user-act-btn approve" data-uid="${u.uid}" data-action="approve" title="Approve this user">
-                    ✓ Approve
-                  </button>
-                  <button class="user-act-btn reject" data-uid="${u.uid}" data-action="reject" title="Reject registration">
-                    ✕ Reject
-                  </button>
-                ` : `
-                  <select class="role-select-inline" data-uid="${u.uid}" style="font-size: 11px; padding: 2px 4px; background: #020710; color: #fff; border: 1px solid #334155; border-radius: 3px;">
-                    <option value="coach" ${u.role === 'coach' ? 'selected' : ''}>Coach</option>
-                    <option value="player" ${u.role === 'player' ? 'selected' : ''}>Player</option>
-                    <option value="parent" ${u.role === 'parent' ? 'selected' : ''}>Parent</option>
-                    <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
-                  </select>
-                  <button class="user-act-btn reject" data-uid="${u.uid}" data-action="reject" title="Remove User">
-                    ✕
-                  </button>
-                `}
-              </div>
-            `}
+            <div class="user-action-btn-group">
+              <button class="user-act-btn edit" data-uid="${u.uid}" data-action="edit" title="Edit user details & password">
+                ✏️ Edit
+              </button>
+              ${isPending ? `
+                <button class="user-act-btn approve" data-uid="${u.uid}" data-action="approve" title="Approve this user">
+                  ✓ Approve
+                </button>
+                <button class="user-act-btn reject" data-uid="${u.uid}" data-action="reject" title="Reject registration">
+                  ✕ Reject
+                </button>
+              ` : (isSuperUser ? '' : `
+                <button class="user-act-btn reject" data-uid="${u.uid}" data-action="delete" title="Remove User">
+                  ✕
+                </button>
+              `)}
+            </div>
           </td>
         </tr>
       `;
@@ -512,26 +565,19 @@ class WaterPoloApp {
       btn.onclick = () => {
         const uid = btn.dataset.uid;
         const act = btn.dataset.action;
-        if (act === 'approve') {
+        if (act === 'edit') {
+          this.openEditUserModal(uid);
+        } else if (act === 'approve') {
           auth.approveUser(uid);
           this.showToast('✅ User approved!');
           this.renderAdminUsersList();
-        } else if (act === 'reject') {
-          if (confirm('Are you sure you want to remove/reject this user request?')) {
-            auth.rejectUser(uid);
-            this.showToast('❌ User request removed.');
+        } else if (act === 'reject' || act === 'delete') {
+          if (confirm('Are you sure you want to remove this user?')) {
+            auth.deleteUser(uid);
+            this.showToast('❌ User removed.');
             this.renderAdminUsersList();
           }
         }
-      };
-    });
-
-    tbody.querySelectorAll('.role-select-inline').forEach(sel => {
-      sel.onchange = () => {
-        const uid = sel.dataset.uid;
-        auth.updateUserRole(uid, sel.value);
-        this.showToast(`Updated user role to: ${sel.value.toUpperCase()}`);
-        this.renderAdminUsersList();
       };
     });
   }

@@ -283,6 +283,17 @@
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
 }
 
+.user-act-btn.edit {
+  background: rgba(255, 184, 28, 0.2);
+  border: 1px solid var(--spartan-gold);
+  color: var(--spartan-gold);
+}
+.user-act-btn.edit:hover {
+  background: var(--spartan-gold);
+  color: #000;
+  box-shadow: 0 0 8px rgba(255, 184, 28, 0.4);
+}
+
 .user-act-btn.reject {
   background: rgba(239, 68, 68, 0.2);
   border: 1px solid #ef4444;

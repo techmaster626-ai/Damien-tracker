@@ -235,13 +235,41 @@ class AuthService {
     };
   }
 
-  // 3. Admin User Approval Actions
+  // 3. Admin User Management & Editing Actions
   getPendingUsers() {
     return this.users.filter(u => u.status === 'pending');
   }
 
   getAllUsers() {
     return this.users;
+  }
+
+  getUserById(uid) {
+    return this.users.find(u => u.uid === uid) || null;
+  }
+
+  updateUserDetails(uid, { name, email, password, role, status, title }) {
+    const user = this.users.find(u => u.uid === uid);
+    if (!user) return { success: false, error: 'User not found' };
+
+    if (name) user.name = name.trim();
+    if (email) user.email = email.trim().toLowerCase();
+    if (password && password.trim()) user.password = password.trim();
+    if (role) user.role = role;
+    if (status) user.status = status;
+    if (title) user.title = title.trim();
+
+    user.avatar = user.role === USER_ROLES.ADMIN ? '🛡️' : user.role === USER_ROLES.COACH ? '📋' : user.role === USER_ROLES.PLAYER ? '🤽‍♂️' : '👨‍👩‍👧';
+
+    // If currently logged in as this user, update active session
+    if (this.currentUser && this.currentUser.uid === uid) {
+      this.currentUser = { ...user };
+      localStorage.setItem('wps_active_session', JSON.stringify({ email: user.email, role: user.role }));
+    }
+
+    this.saveUsers();
+    this.notify();
+    return { success: true, user };
   }
 
   approveUser(uid, assignedRole = null) {
@@ -271,6 +299,10 @@ class AuthService {
       return { success: true, user: removed };
     }
     return { success: false, error: 'User not found' };
+  }
+
+  deleteUser(uid) {
+    return this.rejectUser(uid);
   }
 
   updateUserRole(uid, newRole) {
