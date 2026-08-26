@@ -615,56 +615,21 @@
 
   <!-- Modal: User Authentication & Role Manager -->
   <div class="modal-overlay" id="modal-user-auth">
-    <div class="modal-card">
+    <div class="modal-card modal-lg">
       <div class="modal-header">
-        <h3>🔐 User Sign In & Roles</h3>
+        <h3>🔐 User Sign In & Admin Role Manager</h3>
         <button class="modal-close-btn">✕</button>
       </div>
       <div class="modal-body">
-        <!-- Quick Role Switcher Banner -->
-        <div class="modal-form-group">
-          <label>Quick Profile Switcher</label>
-          <div class="quick-profiles-grid">
-            <button class="profile-select-btn active" data-useremail="vicario.d83@gmail.com">
-              <span class="prof-icon">🛡️</span>
-              <div class="prof-details">
-                <span class="prof-title">Coach Vicario</span>
-                <span class="prof-role">SUPER ADMIN</span>
-              </div>
-            </button>
-
-            <button class="profile-select-btn" data-useremail="coach@damienhs.edu">
-              <span class="prof-icon">📋</span>
-              <div class="prof-details">
-                <span class="prof-title">Assistant Coach</span>
-                <span class="prof-role">COACH</span>
-              </div>
-            </button>
-
-            <button class="profile-select-btn" data-useremail="player@damienhs.edu">
-              <span class="prof-icon">🤽‍♂️</span>
-              <div class="prof-details">
-                <span class="prof-title">David Vicario #12</span>
-                <span class="prof-role">PLAYER</span>
-              </div>
-            </button>
-
-            <button class="profile-select-btn" data-useremail="parent@damienhs.edu">
-              <span class="prof-icon">👨‍👩‍👧</span>
-              <div class="prof-details">
-                <span class="prof-title">Spartan Parent</span>
-                <span class="prof-role">PARENT</span>
-              </div>
-            </button>
-          </div>
+        
+        <div class="cloud-tabs-nav">
+          <button class="cloud-tab-btn active" data-authtab="login">Sign In</button>
+          <button class="cloud-tab-btn" data-authtab="register">Sign Up (Needs Admin Approval)</button>
+          <button class="cloud-tab-btn" data-authtab="approvals" id="btn-tab-approvals">👥 User Approvals <span id="pending-count-badge" class="badge-count"></span></button>
+          <button class="cloud-tab-btn" data-authtab="demo">Demo Role Switcher</button>
         </div>
 
-        <div class="cloud-tabs-nav mt-2">
-          <button class="cloud-tab-btn active" data-authtab="login">Sign In with Credentials</button>
-          <button class="cloud-tab-btn" data-authtab="register">Create New Account</button>
-        </div>
-
-        <!-- Login Form -->
+        <!-- Tab 1: Login Form -->
         <div class="cloud-tab-content active" id="authtab-login">
           <div class="modal-form-group mt-2">
             <label>Email Address</label>
@@ -674,11 +639,17 @@
             <label>Password</label>
             <input type="password" id="auth-login-password" class="modal-input" value="waterpolo4life">
           </div>
+          <div id="login-pending-notice" class="pending-notice-box mt-2" style="display: none;">
+            <span>⏳ Your account is pending administrator approval before you can sign in.</span>
+          </div>
           <button class="modal-submit-btn mt-2" id="btn-submit-auth-login">Sign In</button>
         </div>
 
-        <!-- Register Form -->
+        <!-- Tab 2: Register Form (Requires Admin Approval) -->
         <div class="cloud-tab-content" id="authtab-register">
+          <div class="pending-notice-box mt-2">
+            <span>🛡️ <strong>Admin Approval Required:</strong> All newly registered accounts are reviewed and approved by Coach Vicario / Super Admin before access is granted.</span>
+          </div>
           <div class="modal-form-group mt-2">
             <label>Full Name</label>
             <input type="text" id="auth-reg-name" class="modal-input" placeholder="e.g. John Doe">
@@ -689,30 +660,90 @@
           </div>
           <div class="modal-form-group">
             <label>Password</label>
-            <input type="password" id="auth-reg-password" class="modal-input" placeholder="Create password">
+            <input type="password" id="auth-reg-password" class="modal-input" placeholder="Create a password">
           </div>
           <div class="modal-form-group">
-            <label>User Role</label>
+            <label>Requested Role</label>
             <select id="auth-reg-role" class="modal-select">
-              <option value="parent">Parent / Spectator (Live scoreboard & analytics)</option>
+              <option value="parent">Parent / Spectator (Live scoreboard & box scores)</option>
               <option value="player">Player (Personal stats & shot maps)</option>
-              <option value="coach">Coach (Full live game scorekeeping & roster control)</option>
-              <option value="admin">Admin / Super User</option>
+              <option value="coach">Coach (Full live game scorekeeping & roster management)</option>
             </select>
           </div>
-          <button class="modal-submit-btn mt-2" id="btn-submit-auth-reg">Create Account</button>
+          <button class="modal-submit-btn mt-2" id="btn-submit-auth-reg">Submit Registration for Approval</button>
+        </div>
+
+        <!-- Tab 3: Admin Approvals & User Manager (Super User Only) -->
+        <div class="cloud-tab-content" id="authtab-approvals">
+          <div class="admin-approval-header mb-2">
+            <p class="text-muted" style="font-size: 12px;">Manage user access and approve incoming sign-up requests for coaches, players, and parents.</p>
+          </div>
+          <div class="admin-users-table-wrap">
+            <table class="admin-users-table" id="admin-users-list-table">
+              <thead>
+                <tr>
+                  <th>User / Email</th>
+                  <th>Requested Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 4: Demo Role Switcher -->
+        <div class="cloud-tab-content" id="authtab-demo">
+          <div class="modal-form-group">
+            <label>Test Different Role Permissions</label>
+            <div class="quick-profiles-grid">
+              <button class="profile-select-btn active" data-useremail="vicario.d83@gmail.com">
+                <span class="prof-icon">🛡️</span>
+                <div class="prof-details">
+                  <span class="prof-title">Coach Vicario</span>
+                  <span class="prof-role">SUPER ADMIN</span>
+                </div>
+              </button>
+
+              <button class="profile-select-btn" data-useremail="coach@damienhs.edu">
+                <span class="prof-icon">📋</span>
+                <div class="prof-details">
+                  <span class="prof-title">Assistant Coach</span>
+                  <span class="prof-role">COACH</span>
+                </div>
+              </button>
+
+              <button class="profile-select-btn" data-useremail="player@damienhs.edu">
+                <span class="prof-icon">🤽‍♂️</span>
+                <div class="prof-details">
+                  <span class="prof-title">David Vicario #12</span>
+                  <span class="prof-role">PLAYER</span>
+                </div>
+              </button>
+
+              <button class="profile-select-btn" data-useremail="parent@damienhs.edu">
+                <span class="prof-icon">👨‍👩‍👧</span>
+                <div class="prof-details">
+                  <span class="prof-title">Spartan Parent</span>
+                  <span class="prof-role">PARENT</span>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Permissions Reference Guide -->
-        <div class="role-permissions-banner mt-2">
-          <strong>Role Permissions Overview:</strong>
+        <div class="role-permissions-banner mt-3">
+          <strong>Access Level Reference:</strong>
           <ul>
-            <li><strong>Admin (Super User)</strong>: Unrestricted control (Scoring, Rosters, Cloud Sync, Reset Data)</li>
-            <li><strong>Coach</strong>: Live game scoring, sheet scoring, roster updates, Google Sheets sync</li>
-            <li><strong>Player</strong>: Personal stats, shot maps, box scores (Read-only live scoring)</li>
-            <li><strong>Parent</strong>: Spectator live feed, play-by-play, stream HUD (Read-only)</li>
+            <li><strong>Super Admin (`admin`)</strong>: Full master access + User Approvals & Role Management.</li>
+            <li><strong>Coach (`coach`)</strong>: Live Game & Sheet Scoring, Roster Management, Google Sheets Sync.</li>
+            <li><strong>Player (`player`)</strong>: Player Analytics dashboard, individual heatmaps, and box scores.</li>
+            <li><strong>Parent (`parent`)</strong>: Live spectator scoreboard, play-by-play, and stream HUD.</li>
           </ul>
         </div>
+
       </div>
       <div class="modal-footer">
         <button type="button" class="modal-cancel-btn">Close</button>

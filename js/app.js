@@ -221,12 +221,14 @@ class WaterPoloApp {
               <span class="user-avatar-icon">${auth.currentUser?.avatar || '👤'}</span>
               <span>${auth.currentUser?.name || 'Sign In'}</span>
               <span class="user-role-tag role-${auth.currentUser?.role || 'parent'}">${(auth.currentUser?.role || 'Spectator').toUpperCase()}</span>
+              ${auth.isAdmin() && auth.getPendingUsers().length > 0 ? '<span class="pending-notification-dot" title="Pending sign-ups requiring approval"></span>' : ''}
             </button>
             <div class="user-dropdown-menu" id="user-dropdown-menu">
               <div class="dropdown-user-info">
                 <span class="dropdown-user-name">${auth.currentUser?.name || 'Guest User'}</span>
                 <span class="dropdown-user-email">${auth.currentUser?.email || 'Not signed in'}</span>
               </div>
+              ${auth.isAdmin() ? `<button class="dropdown-btn-item" id="btn-dropdown-approvals">👥 User Approvals ${auth.getPendingUsers().length > 0 ? `<span class="badge-count" style="background:#ef4444; color:#fff; padding:1px 6px; border-radius:10px; font-size:10px;">${auth.getPendingUsers().length} new</span>` : ''}</button>` : ''}
               <button class="dropdown-btn-item" id="btn-dropdown-switch-role">🔄 Switch Role / Profile</button>
               <button class="dropdown-btn-item" id="btn-dropdown-auth-modal">🔐 Sign In as Another User</button>
               <button class="dropdown-btn-item logout" id="btn-dropdown-logout">🚪 Sign Out</button>
@@ -339,18 +341,34 @@ class WaterPoloApp {
 
     const switchRoleBtn = document.getElementById('btn-dropdown-switch-role');
     const authModalBtn = document.getElementById('btn-dropdown-auth-modal');
+    const approvalsBtn = document.getElementById('btn-dropdown-approvals');
     const logoutBtn = document.getElementById('btn-dropdown-logout');
+
+    if (approvalsBtn) {
+      approvalsBtn.onclick = () => {
+        dropdown?.classList.remove('active');
+        this.renderAdminUsersList();
+        modal.classList.add('active');
+        const approvalsTabBtn = modal.querySelector('[data-authtab="approvals"]');
+        if (approvalsTabBtn) approvalsTabBtn.click();
+      };
+    }
 
     if (switchRoleBtn) {
       switchRoleBtn.onclick = () => {
         dropdown?.classList.remove('active');
+        this.renderAdminUsersList();
         modal.classList.add('active');
+        // Switch to demo tab
+        const demoTabBtn = modal.querySelector('[data-authtab="demo"]');
+        if (demoTabBtn) demoTabBtn.click();
       };
     }
 
     if (authModalBtn) {
       authModalBtn.onclick = () => {
         dropdown?.classList.remove('active');
+        this.renderAdminUsersList();
         modal.classList.add('active');
       };
     }
@@ -363,7 +381,7 @@ class WaterPoloApp {
       };
     }
 
-    // Modal Tabs (Login vs Register)
+    // Modal Tabs (Login, Register, Approvals, Demo)
     const tabBtns = modal.querySelectorAll('.cloud-tab-btn');
     tabBtns.forEach(btn => {
       btn.onclick = () => {
@@ -371,7 +389,12 @@ class WaterPoloApp {
         btn.classList.add('active');
         modal.querySelectorAll('.cloud-tab-content').forEach(c => c.classList.remove('active'));
         const target = modal.querySelector(`#authtab-${btn.dataset.authtab}`);
-        if (target) target.classList.add('active');
+        if (target) {
+          target.classList.add('active');
+          if (btn.dataset.authtab === 'approvals') {
+            this.renderAdminUsersList();
+          }
+        }
       };
     });
 
@@ -390,8 +413,10 @@ class WaterPoloApp {
 
     // Sign In Button
     const submitLogin = document.getElementById('btn-submit-auth-login');
+    const pendingNotice = document.getElementById('login-pending-notice');
     if (submitLogin) {
       submitLogin.onclick = async () => {
+        if (pendingNotice) pendingNotice.style.display = 'none';
         const email = document.getElementById('auth-login-email')?.value;
         const pass = document.getElementById('auth-login-password')?.value;
         const res = await auth.login(email, pass);
@@ -399,12 +424,15 @@ class WaterPoloApp {
           modal.classList.remove('active');
           this.showToast(`✅ Welcome back, ${res.user.name}!`);
         } else {
+          if (res.isPending && pendingNotice) {
+            pendingNotice.style.display = 'flex';
+          }
           alert(res.error);
         }
       };
     }
 
-    // Register Button
+    // Register Button (Submits for Admin Approval)
     const submitReg = document.getElementById('btn-submit-auth-reg');
     if (submitReg) {
       submitReg.onclick = async () => {
@@ -413,16 +441,121 @@ class WaterPoloApp {
         const pass = document.getElementById('auth-reg-password')?.value;
         const role = document.getElementById('auth-reg-role')?.value;
 
-        if (!name || !email || !pass) return alert('Please fill in all fields');
+        if (!name || !email || !pass) return alert('Please fill in all required fields');
         const res = await auth.register(name, email, pass, role);
         if (res.success) {
+          alert(`🎉 Registration Submitted!\n\nThank you, ${name}. Your request has been sent to Coach Vicario / Super Admin for approval. You will be able to log in as soon as it is approved.`);
           modal.classList.remove('active');
-          this.showToast(`✅ Account created for ${res.user.name}!`);
+          this.showToast(`⏳ Registration pending admin approval.`);
+          this.renderAdminUsersList();
         } else {
           alert(res.error);
         }
       };
     }
+
+    this.renderAdminUsersList();
+  }
+
+  renderAdminUsersList() {
+    const tbody = document.getElementById('admin-users-tbody');
+    const pendingBadge = document.getElementById('pending-count-badge');
+    const approvalsTabBtn = document.getElementById('btn-tab-approvals');
+    if (!tbody) return;
+
+    const allUsers = auth.getAllUsers();
+    const pendingUsers = auth.getPendingUsers();
+
+    if (pendingBadge) {
+      if (pendingUsers.length > 0) {
+        pendingBadge.textContent = pendingUsers.length;
+        pendingBadge.style.display = 'inline-block';
+      } else {
+        pendingBadge.style.display = 'none';
+      }
+    }
+
+    // Only show approvals tab button if user is Admin
+    if (approvalsTabBtn) {
+      approvalsTabBtn.style.display = auth.isAdmin() ? 'inline-block' : 'none';
+    }
+
+    if (allUsers.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center">No registered users found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = allUsers.map(u => {
+      const isSuperUser = u.email.toLowerCase() === 'vicario.d83@gmail.com';
+      const isPending = u.status === 'pending';
+
+      return `
+        <tr>
+          <td>
+            <strong>${u.name}</strong><br>
+            <span class="text-muted" style="font-size: 11px;">${u.email}</span>
+          </td>
+          <td>
+            <span class="user-role-tag role-${u.role}">${u.role.toUpperCase()}</span>
+          </td>
+          <td>
+            <span class="status-badge ${u.status}">${u.status.toUpperCase()}</span>
+          </td>
+          <td>
+            ${isSuperUser ? '<span class="text-muted" style="font-size: 11px;">Super Admin</span>' : `
+              <div class="user-action-btn-group">
+                ${isPending ? `
+                  <button class="user-act-btn approve" data-uid="${u.uid}" data-action="approve" title="Approve this user">
+                    ✓ Approve
+                  </button>
+                  <button class="user-act-btn reject" data-uid="${u.uid}" data-action="reject" title="Reject registration">
+                    ✕ Reject
+                  </button>
+                ` : `
+                  <select class="role-select-inline" data-uid="${u.uid}" style="font-size: 11px; padding: 2px 4px; background: #020710; color: #fff; border: 1px solid #334155; border-radius: 3px;">
+                    <option value="coach" ${u.role === 'coach' ? 'selected' : ''}>Coach</option>
+                    <option value="player" ${u.role === 'player' ? 'selected' : ''}>Player</option>
+                    <option value="parent" ${u.role === 'parent' ? 'selected' : ''}>Parent</option>
+                    <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+                  </select>
+                  <button class="user-act-btn reject" data-uid="${u.uid}" data-action="reject" title="Remove User">
+                    ✕
+                  </button>
+                `}
+              </div>
+            `}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Bind action buttons in table
+    tbody.querySelectorAll('.user-act-btn').forEach(btn => {
+      btn.onclick = () => {
+        const uid = btn.dataset.uid;
+        const act = btn.dataset.action;
+        if (act === 'approve') {
+          auth.approveUser(uid);
+          this.showToast('✅ User approved!');
+          this.renderAdminUsersList();
+        } else if (act === 'reject') {
+          if (confirm('Are you sure you want to remove/reject this user request?')) {
+            auth.rejectUser(uid);
+            this.showToast('❌ User request removed.');
+            this.renderAdminUsersList();
+          }
+        }
+      };
+    });
+
+    tbody.querySelectorAll('.role-select-inline').forEach(sel => {
+      sel.onchange = () => {
+        const uid = sel.dataset.uid;
+        auth.updateUserRole(uid, sel.value);
+        this.showToast(`Updated user role to: ${sel.value.toUpperCase()}`);
+        this.renderAdminUsersList();
+      };
+    });
   }
 
   switchTab(tabName) {
