@@ -1,0 +1,330 @@
+/**
+ * Live Damien Sheet Matrix Scorekeeper Styles
+ */
+
+.sheet-scoring-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Header HUD */
+.sheet-scoring-header-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--spartan-gold);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: var(--shadow-md);
+  flex-wrap: wrap;
+}
+
+.ssh-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.ssh-brand {
+  display: flex;
+  flex-direction: column;
+}
+
+.ssh-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.ssh-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.ssh-score-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ssh-team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ssh-team.home .ssh-team-score {
+  color: var(--spartan-gold);
+}
+
+.ssh-team.away .ssh-team-score {
+  color: #38bdf8;
+}
+
+.ssh-team-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ssh-team-score {
+  font-size: 24px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+}
+
+.ssh-vs {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ssh-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ssh-clock-badge {
+  background: rgba(10, 24, 41, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.ssh-clock-badge.running {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+  color: #86efac;
+}
+
+/* Scrollable Table Wrapper */
+.sheet-table-scroll-wrapper {
+  overflow-x: auto;
+  background: var(--bg-card);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.interactive-damien-sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.interactive-damien-sheet-table th,
+.interactive-damien-sheet-table td {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 6px;
+  text-align: center;
+}
+
+.interactive-damien-sheet-table thead tr th {
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.tier-1 th {
+  background: rgba(14, 45, 35, 0.95);
+  font-size: 12px;
+}
+
+.hdr-offense {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #86efac !important;
+  border-bottom: 2px solid #22c55e !important;
+}
+
+.hdr-defense {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #bae6fd !important;
+  border-bottom: 2px solid #38bdf8 !important;
+}
+
+.hdr-pm {
+  background: rgba(255, 184, 28, 0.18) !important;
+  color: var(--spartan-gold) !important;
+  border-bottom: 2px solid var(--spartan-gold) !important;
+}
+
+.weight-tag {
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+.weight-tag.pos { color: #86efac; }
+.weight-tag.neg { color: #fca5a5; }
+
+.col-cap { width: 36px; }
+.col-name { width: 140px; text-align: left !important; }
+.cell-cap { font-family: var(--font-mono); color: var(--spartan-gold); }
+.cell-player-name { text-align: left !important; font-weight: 700; color: var(--text-primary); }
+
+/* Interactive Tap Buttons */
+.cell-tap {
+  padding: 2px !important;
+  cursor: pointer;
+}
+
+.sheet-tap-btn {
+  width: 100%;
+  min-width: 32px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sheet-tap-btn:hover {
+  transform: scale(1.08);
+  border-color: var(--spartan-gold);
+  background: rgba(255, 184, 28, 0.15);
+  color: #ffffff;
+}
+
+.sheet-tap-btn:active {
+  transform: scale(0.95);
+}
+
+.sheet-tap-btn.goal {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #86efac;
+}
+.sheet-tap-btn.goal:hover {
+  background: #22c55e;
+  color: #052e16;
+}
+
+.sheet-tap-btn.good {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #bae6fd;
+}
+.sheet-tap-btn.good:hover {
+  background: #38bdf8;
+  color: #082f49;
+}
+
+.sheet-tap-btn.bad {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+.sheet-tap-btn.bad:hover {
+  background: #ef4444;
+  color: #450a0a;
+}
+.sheet-tap-btn.foulout {
+  background: #ef4444;
+  color: #ffffff;
+  animation: pulseRed 1s infinite alternate;
+}
+
+/* Plus / Minus Cells */
+.cell-pm {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.plus-cell { color: #86efac; background: rgba(34, 197, 94, 0.06); }
+.minus-cell { color: #fca5a5; background: rgba(239, 68, 68, 0.06); }
+.total-cell { font-weight: 900; }
+
+.pm-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.total-cell.pos .pm-badge {
+  background: rgba(255, 184, 28, 0.2);
+  border: 1px solid var(--spartan-gold);
+  color: var(--spartan-gold);
+}
+.total-cell.neg .pm-badge {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+}
+
+/* Opponent Exclusions Grid */
+.opp-exc-interactive-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+}
+
+.opp-exc-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.opp-exc-btn:hover {
+  background: var(--spartan-gold);
+  color: #051610;
+}
+
+.opp-exc-btn.active {
+  background: var(--accent-amber);
+  color: #451a03;
+  font-weight: 900;
+  border-color: #f59e0b;
+}
+
+/* Summary Row */
+.sheet-totals-summary-row td {
+  background: rgba(14, 61, 47, 0.6) !important;
+  font-weight: 900;
+  color: #ffffff;
+  font-size: 12px;
+  padding: 8px 6px;
+}
+
+/* Goalie Interactive Card */
+.sheet-gk-interactive-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.gk-card-header h4 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.gk-table th {
+  background: rgba(14, 45, 35, 0.95);
+}

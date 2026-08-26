@@ -18,6 +18,7 @@ import { BoxScoreRenderer } from './boxscore.js';
 import { PlayByPlayRenderer } from './pbp.js';
 import { BroadcastEngine } from './broadcast.js';
 import { PlayerAnalyticsEngine } from './analytics.js';
+import { DamienSheetScorekeeper } from './sheet-scorekeeper.js';
 import { importer } from './importer.js';
 import { exporter } from './exporter.js';
 import { cloudSync } from './cloud-sync.js';
@@ -31,7 +32,8 @@ class WaterPoloApp {
     this.pbp = null;
     this.broadcast = null;
     this.analytics = null;
-    this.activeTab = 'scoring'; // 'scoring' | 'analytics' | 'boxscore' | 'pbp' | 'broadcast' | 'export'
+    this.sheetScorekeeper = null;
+    this.activeTab = 'scoring'; // 'scoring' | 'sheet' | 'analytics' | 'boxscore' | 'pbp' | 'broadcast' | 'export'
 
     // Pending parsed roster data for importer
     this.pendingParsedRoster = [];
@@ -196,6 +198,7 @@ class WaterPoloApp {
 
         <div class="nav-tabs-wrapper">
           <button class="nav-tab-btn active" data-tab="scoring">⚡ Live Scoring & Pool</button>
+          <button class="nav-tab-btn" data-tab="sheet">📋 Live Sheet Scoring</button>
           <button class="nav-tab-btn" data-tab="analytics">📈 Player Analytics</button>
           <button class="nav-tab-btn" data-tab="boxscore">📊 Box Score</button>
           <button class="nav-tab-btn" data-tab="pbp">📜 Play-by-Play</button>
@@ -285,7 +288,9 @@ class WaterPoloApp {
     const target = document.getElementById(`view-${tabName}`);
     if (target) target.classList.add('active');
 
-    if (tabName === 'analytics' && this.analytics) {
+    if (tabName === 'sheet' && this.sheetScorekeeper) {
+      this.sheetScorekeeper.render();
+    } else if (tabName === 'analytics' && this.analytics) {
       this.analytics.render();
     } else if (tabName === 'broadcast' && this.broadcast) {
       this.broadcast.openBroadcastWindow();
@@ -302,6 +307,11 @@ class WaterPoloApp {
           this.pendingAction.poolY = coords.y;
         }
       });
+    }
+
+    const sheetMount = document.getElementById('damien-sheet-view-mount');
+    if (sheetMount) {
+      this.sheetScorekeeper = new DamienSheetScorekeeper(sheetMount);
     }
 
     const analyticsMount = document.getElementById('analytics-view-mount');
